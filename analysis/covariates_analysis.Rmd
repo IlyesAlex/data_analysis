@@ -1,0 +1,254 @@
+---
+title: "Covariates_analysis"
+author: "Alex Ilyés"
+date: '2022 03 15 '
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(dpi=300,fig.width=7)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(readxl)
+library(tidyr)
+library(scales)
+library(ggplot2)
+```
+
+## NBACK
+
+We check how the nback works 
+
+### Data check clean
+
+```{r}
+
+nback_data = read_excel("../results/05_NBack/nback_all_longformat.xlsx")
+
+nback_data_filtered = nback_data %>%
+  filter(feladat_blokk != 'nback_1_practice' & feladat_blokk != 'nback_2_practice')
+
+```
+
+
+### Figure
+
+```{r}
+
+nback_data_filtered %>%
+  group_by(AgeGroup, feladat_blokk, ID, `Response type`) %>%
+  count() %>%
+  ggplot(aes(x = `Response type`, y = n, fill = AgeGroup)) +
+    geom_bar(stat = 'identity') +
+    facet_grid(feladat_blokk ~ ID) +
+    theme(text = element_text(size = 8), plot.title = element_text(size=15)) +
+    labs(title = "Response types in N-back per participants per blocks", x = "Response types", y = "Number of responses in type", fill = "ID of Participants")
+
+nback_data_filtered %>%
+  filter(`Response type` == 'hit') %>%
+  ggplot(aes(x = ID, y = as.numeric(`Answer RT`), fill = AgeGroup)) +
+    geom_violin() +
+    theme(text = element_text(size = 14), plot.title = element_text(size=20)) +
+    geom_boxplot(width=0.1, fill = 'white')+
+    labs(title = "Reaction times of hits on N-back for each participant", x = "Participants", y = "Reaction times (RT)", fill = "ID of Participants")
+```
+
+
+## MST
+
+We check how the MST works 
+
+### Data check clean
+
+```{r}
+
+mst_data = read_excel("../results/02_MST/mst_all_longformat.xlsx")
+
+mst_enc = mst_data %>%
+  filter(feladat == 'ENC')
+
+mst_rec = mst_data %>%
+  filter(feladat == 'REC')
+
+```
+
+### Figure
+
+```{r}
+#RTs in enc
+mst_enc %>%
+  group_by(ID, response) %>%
+  ggplot(aes(x = response, y = rt, fill = AgeGroup)) +
+    geom_violin() +
+    geom_boxplot(width=0.1, fill = 'white') +
+    facet_wrap(~ID) +
+    labs(title = "Reaction times of encoding responses per response type on Encoding phase of MST", x = "Response type", y = "Reaction times (RT)", fill = "ID of Participants")
+
+#How much answers?
+mst_enc %>%
+  group_by(AgeGroup, ID, response) %>%
+  count() %>%
+  ggplot(aes(x = response, y = n, fill = AgeGroup)) +
+    geom_bar(stat = 'identity') +
+    facet_wrap(~ID) +
+    labs(title = "The amount of response types on Encoding phase of MST", x = "Response type", y = "Amount", fill = "ID of Participants")
+
+```
+
+```{r}
+
+#RTs in rec
+mst_rec %>%
+  group_by(ID, response) %>%
+  ggplot(aes(x = response, y = rt, fill = AgeGroup)) +
+    geom_violin() +
+    geom_boxplot(width=0.1, fill = 'white') +
+    facet_wrap(~ID) +
+    scale_x_discrete(name ="Response by participant", 
+                    labels=c("new","old","similar")) +
+    labs(title = "Reaction time by response on Recognition phase of MST", y = "Reaction time (RT)")
+
+mst_rec %>%
+  group_by(ID, condition) %>%
+  ggplot(aes(x = condition, y = rt, fill = AgeGroup)) +
+    custom_theme +
+    geom_violin(position = position_dodge()) +
+    geom_boxplot(position = position_dodge(width = 1), width = 0.3) +
+    scale_x_discrete(name ="Type of stimulus presented", 
+                    labels=c("foil","lure","repeat")) +
+    labs(y = "Reaction time", 
+         title = "MST-REC: Reaction Time" 
+    ) +
+    facet_grid(AgeGroup~response,
+               labeller = labeller(AgeGroup = c("OA" ="Old Adults", "YA" = "Young Adults"),
+                                   response = c("n" = "new", "o" = "old", "s" = "similar")))
+
+
+```
+```{r}
+
+#By individuals
+mst_rec %>%
+  drop_na(response) %>%
+  group_by(AgeGroup, ID, condition, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(AgeGroup, ID, condition) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ggplot(aes(factor(condition, levels=c("TF", "TL", "TR")), percentage, fill = factor(response, labels=c("new", "old", "similar")))) +
+    geom_bar(stat='identity', position = position_dodge2(width=1, preserve ="single")) +
+    facet_wrap(AgeGroup~ID) +
+    scale_x_discrete(labels=c("foil","lure","repeat")) +
+    scale_y_continuous(labels=percent) +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Pilot data of 5 participants (MST) - responses * types", fill = "Type of response")
+
+#Average
+mst_rec_datapoints = mst_rec %>%
+  drop_na(response) %>%
+  select(AgeGroup, ID, condition, response) %>%
+  group_by(AgeGroup, ID, condition, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(AgeGroup, ID, condition) %>%
+  mutate(percentage = n/sum(n))
+
+mst_rec %>%
+  drop_na(response) %>%
+  select(AgeGroup, ID, condition, response) %>%
+  group_by(AgeGroup, ID, condition, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(AgeGroup, ID, condition) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ungroup() %>%
+  group_by(AgeGroup, condition, response) %>%
+  summarise(
+    sd=sd(percentage),
+    percentage=mean(percentage)
+    ) %>%
+  ggplot(aes(x = factor(condition, levels=c("TF", "TL", "TR")), y = percentage, fill=factor(response, labels=c("new", "old", "similar")))) +
+    geom_bar(stat = "identity", position = position_dodge2(width=1, preserve ="single")) +
+    #geom_errorbar(aes(ymin=percentage-sd, ymax=percentage+sd), width=.3,
+                 #position=position_dodge(.9), size=0.86) +
+    geom_point(data=mst_rec_datapoints, aes(x = factor(condition, levels=c("TF", "TL", "TR")), y = percentage, fill=factor(response, labels=c("new", "old", "similar"))), position = position_jitterdodge(dodge.width = 1, jitter.width=0.4)) +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Pilot data of 5 participants (MST) - responses * types", fill = "Type of response") +
+    scale_y_continuous(labels=percent) +
+    theme(text = element_text(size = 16)) +
+    facet_wrap(~AgeGroup)
+
+```
+
+
+
+## PALT
+
+### Data clean
+
+```{r}
+
+palt_data = read_excel("../results/03_PALT/palt_all_longformat.xlsx")
+
+```
+
+
+### Figure
+
+```{r}
+
+palt_data %>%
+  mutate(word_pair = paste(wordA,"-",wordB)) %>%
+  ggplot(aes(x = ID, y = word_pair)) + 
+    geom_raster(aes(fill=correctness)) +
+    #geom_text(aes(label = response_word)) +
+    geom_text(aes(label = trialno)) +
+    labs(title = "Words trial order for participants", x = "ID of participant", y = "Word pairs to associate", fill = "Correct or not") +
+    scale_fill_discrete(labels = c("incorrect", "correct")) +
+    facet_wrap(~AgeGroup)
+
+palt_data %>%
+  mutate(word_pair = paste(wordA,"-",wordB)) %>%
+  ggplot(aes(x = ID, y = word_pair)) + 
+    geom_raster(aes(fill=correctness)) +
+    geom_text(aes(label = response_word)) +
+    #geom_text(aes(label = trialno)) +
+    labs(title = "Words given by participants from pairs", x = "ID of participant", y = "Word pairs to associate", fill = "Correct or not") +
+    scale_fill_discrete(labels = c("incorrect", "correct")) +
+    facet_wrap(~AgeGroup)
+
+```
+
+
+## Paper and Pencil
+
+### Data
+
+```{r}
+
+paper_pencil_data = read_excel("../data/D_PencilPaper/papir_ceruza_logs.xlsx")
+
+paper_pencil_data_long = paper_pencil_data %>%
+  gather(questionnaire, result, -`Résztvevő kódja`, -Korosztály, -Nem, -Kor)
+
+```
+
+
+### Figures
+
+```{r}
+
+paper_pencil_data_long %>%
+  filter(questionnaire != 'Moca') %>%
+  ggplot(aes(x = as.factor(`Résztvevő kódja`), y = as.numeric(result), color = as.factor(Korosztály))) +
+    geom_point() +
+    facet_wrap(~questionnaire, scales = "free") +
+    theme(axis.text.x=element_blank()) +
+    geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
+    labs(title = "Results on paper and pencil tests", x = "Participants", y = "Results of different tests", color = "ID of Participants")
+    
+    
+
+
+```
+

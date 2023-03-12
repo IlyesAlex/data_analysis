@@ -1,0 +1,624 @@
+---
+title: "semantic_mst_analysis_r"
+author: "Alex Ilyés"
+date: '2021 04 09 '
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(readxl)
+library(tidyr)
+library(scales)
+library(ggplot2)
+library(psycho)
+library(ggpubr)
+library(rstatix)
+library(afex)
+library(MuMIn)
+library(lme4)
+library(lmerTest)
+
+```
+
+## Reading in the data
+
+Data is in excel format, longformatted to subjects
+
+```{r}
+
+semmst_data = read_excel("../results/01_semanticMST/smst_all_longformat.xlsx")
+
+semmst_data_rec = semmst_data %>%
+  filter(feladat_rész=="REC")
+
+semmst_data_enc = semmst_data %>%
+  filter(feladat_rész=="ENC")
+```
+
+## Basic plots for seeing MST work
+
+You can also embed plots, for example:
+
+```{r}
+
+
+#individual data
+semmst_data %>%
+  filter(feladat_rész=="REC") %>%
+  filter(response != "None") %>%
+  select(ID, stimtype, response) %>%
+  group_by(ID, stimtype, response) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), n, fill = factor(response, levels=c("old", "new")))) +
+    geom_bar(stat='identity', position = position_dodge2(width=1, preserve ="single")) +
+    facet_wrap(~ID) +
+    scale_y_continuous(labels=percent_format(),) +
+    labs(x = "Type of stimulus", y = "Number of responses", title = "Data of 5 YA participants (semMST) - responses * types", fill = "Type of response")
+
+```
+
+```{r}
+#averaged data
+semmst_data %>%
+  filter(feladat_rész=="REC") %>%
+  filter(response != "None") %>%
+  select(stimtype, response) %>%
+  group_by(stimtype, response) %>%
+  summarize(n = n()) %>%
+  ggplot(aes(factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), n, fill = factor(response, levels=c("old", "new")))) +
+  geom_bar(stat='identity', position = position_dodge2(width=1, preserve ="single")) +
+  labs(x = "Type of stimulus", y = "Number of responses", title = "Data of 5 YA participants (semMST) - responses * types", fill = "Type of response")
+```
+
+
+```{r}
+#individual data 2 - as percentages
+semmst_data %>%
+  filter(feladat_rész=="REC") %>%
+  filter(response != "None") %>%
+  select(ID, stimtype, response) %>%
+  group_by(ID, stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(ID, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ggplot(aes(factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), percentage, fill = factor(response, levels=c("old", "new")))) +
+  geom_bar(stat='identity', position = position_dodge2(width=1, preserve ="single")) +
+  facet_wrap(~ID) +
+  scale_y_continuous(labels=percent) +
+  labs(x = "Type of stimulus", y = "Percentages of responses", title = "Data of 5 YA participants (semMST) - responses * types", fill = "Type of response")
+```
+
+
+```{r}
+
+#averaged data 2 - as percentages
+semmst_data %>%
+  filter(feladat_rész=="REC") %>%
+  filter(response != "None") %>%
+  select(stimtype, response) %>%
+  group_by(stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(stimtype) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage, fill=factor(response, levels=c("old", "new")))) +
+    geom_bar(stat = "identity", position = position_dodge2(width=1, preserve ="single")) +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Data of 5 YA participants (sMST) - responses * types", fill = "Type of response") +
+    scale_y_continuous(labels=percent) +
+    theme(text = element_text(size = 18))
+```
+
+Combined data
+```{r}
+
+semmst_datapoints = semmst_data %>%
+  filter(feladat_rész=="REC") %>%
+  filter(response != "None") %>%
+  select(ID, stimtype, response) %>%
+  group_by(ID, stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(ID, stimtype) %>%
+  mutate(percentage = n/sum(n))
+
+semmst_data %>%
+  filter(feladat_rész=="REC") %>%
+  filter(response != "None") %>%
+  select(ID, stimtype, response) %>%
+  group_by(ID, stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(ID, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ungroup() %>%
+  group_by(stimtype, response) %>%
+  summarise(
+    sd=sd(percentage),
+    percentage=mean(percentage)
+    ) %>%
+  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage, fill=factor(response, levels=c("old", "new")))) +
+    geom_bar(stat = "identity", position = position_dodge2(width=1, preserve ="single")) +
+    #geom_errorbar(aes(ymin=percentage-sd, ymax=percentage+sd), width=.3,
+                 #position=position_dodge(.9), size=0.86) +
+    geom_point(data=semmst_datapoints, aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage, fill=factor(response, levels=c("old", "new"))), position = position_dodge(width=1)) +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Data of 5 YA participants (sMST) - responses * types", fill = "Type of response") +
+    scale_y_continuous(labels=percent) +
+    theme(text = element_text(size = 17))
+  
+  
+  
+```
+
+
+## Analysing demographic data
+
+```{r}
+
+
+semmst_demographic = read_excel("data/collection/demography_sem_mst.xlsx")
+
+mean(semmst_demographic$Életkor)
+sd(semmst_demographic$Életkor)
+mean(semmst_demographic$Oktatás)
+sd(semmst_demographic$Oktatás)
+
+```
+
+
+## Hungarian version of plots
+
+```{r}
+#individual data 2 - as percentages
+
+semmst_data = semmst_data %>%
+  mutate(stimtype=sub("TARG", "célinger", stimtype)) %>%
+  mutate(stimtype=sub("CLOSE", "közeli", stimtype)) %>%
+  mutate(stimtype=sub("DISTANT", "távoli", stimtype)) %>%
+  mutate(stimtype=sub("FOIL", "új", stimtype))
+
+semmst_data %>%
+  filter(phase=="REC") %>%
+  drop_na(response) %>%
+  select(ID, stimtype, response) %>%
+  group_by(ID, stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(ID, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ggplot(aes(factor(stimtype, levels=c("célinger", "közeli", "távoli", "új")), percentage, fill = factor(response, labels=c("régi", "új")))) +
+  geom_bar(stat='identity', position = position_dodge2(width=1, preserve ="single")) +
+  facet_wrap(~ID) +
+  scale_y_continuous(labels=percent) +
+  labs(x = "Szópár kategóriája", y = "A válaszok százalékos aránya", title = "17 résztvevő előzetes adatai (semMST) - válaszok * típusok", fill = "Válasz típusa")
+```
+
+
+
+```{r}
+#individual data 3 - as jitter plot
+
+#names(semmst_data)[9] <- "válasz_típusa"
+
+# semmst_data = semmst_data %>%
+#   mutate(stimtype=sub("TARG", "célinger", stimtype)) %>%
+#   mutate(stimtype=sub("CLOSE", "közeli", stimtype)) %>%
+#   mutate(stimtype=sub("DISTANT", "távoli", stimtype)) %>%
+#   mutate(stimtype=sub("FOIL", "új", stimtype)) %>%
+#   mutate(response=sub("f", "régi", válasz_típusa)) %>%
+#   mutate(response=sub("j", "új", válasz_típusa))
+
+semmst_data %>%
+  filter(phase=="REC") %>%
+  drop_na(response) %>%
+  select(ID, stimtype, response) %>%
+  group_by(ID, stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(ID, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>%
+  ggplot(aes(factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage)) +
+    geom_jitter(aes(colour = factor(response, labels=c("OLD", "NEW"))), size = 3, width = 0.25) +
+    scale_y_continuous(labels=percent) +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Pilot data of 17 participants (semMST)", colour = "Type of response")
+
+```
+
+
+```{r}
+
+semmst_data <- subset(semmst_data, select = -[11]
+names(semmst_data)[9] <- "response"
+
+semmst_data = semmst_data %>%
+  mutate(stimtype=sub("TARG", "célinger", stimtype)) %>%
+  mutate(stimtype=sub("CLOSE", "közeli", stimtype)) %>%
+  mutate(stimtype=sub("DISTANT", "távoli", stimtype)) %>%
+  mutate(stimtype=sub("FOIL", "új", stimtype))
+
+#averaged data 2 - as percentages
+semmst_data %>%
+  filter(phase=="REC") %>%
+  drop_na(response1) %>%
+  select(stimtype, response) %>%
+  group_by(stimtype, response) %>%
+  count() %>%
+  ungroup() %>%
+  group_by(stimtype) %>%
+  mutate(percentage = n/sum(n)) %>%
+  summarize(avg = mean(percentage), SD = sd(percentage)) %>%
+  ggplot(aes(x = factor(stimtype, levels=c("célinger", "közeli", "távoli", "új")), y = percentage, fill=factor(response, labels=c("régi", "új")))) +
+    geom_bar(stat = "identity", position = position_dodge2(width=1, preserve ="single")) +
+    labs(x = "Type of stimulus", y = "A válaszok százalékos aránya", title = "17 résztvevő előzetes adatai (semMST) - válaszok * típusok", fill = "Válasz típusa") +
+    scale_y_continuous(labels=percent)
+```
+
+## D' statistics
+
+Calculating z scores and d'-s
+
+```{r}
+
+
+sem_mst_ans = read_excel("data/collection/2020_april_pilot_Borcsa_szd.xlsx")
+sem_mst_ans %>%
+  filter(ID!="28")
+  
+
+rec_dprime <- psycho::dprime(sem_mst_ans$old_targ, sem_mst_ans$old_foil, sem_mst_ans$new_targ, sem_mst_ans$new_foil) #calculating d' between targets and foils (REC in traditional mst)
+
+#z_rec <- scale(rec_dprime$dprime) #standardizing d'
+
+#calculating d' for close lures and targets (LDI for close lures)
+close_ldi <- psycho::dprime(sem_mst_ans$old_targ, sem_mst_ans$old_close, sem_mst_ans$new_targ, sem_mst_ans$new_close)
+
+#z_cldi <- scale(close_ldi$dprime) #standardizing LDI scores
+
+#calculating d' for distant lures and targets (LDI for distant lures)
+distant_ldi <- psycho::dprime(sem_mst_ans$old_targ, sem_mst_ans$old_distant, sem_mst_ans$new_targ, sem_mst_ans$new_distant)
+
+#z_dldi <- scale(distant_ldi$dprime) #standardizing LDI scores
+
+#z_ldis <- data.frame(sem_mst_ans$ID, z_cldi, z_dldi)
+#z_dprime_scores <- data.frame(sem_mst_ans$ID, z_cldi, z_dldi, z_rec)
+
+ldis <- data.frame(sem_mst_ans$ID, close_ldi$dprime, distant_ldi$dprime)
+names(ldis)[1] <- "ID"
+names(ldis)[2] <- "közeli_csali"
+names(ldis)[3] <- "távoli_csali"
+
+foil_vs_distant <- data.frame(sem_mst_ans$ID, distant_ldi$dprime, rec_dprime$dprime)
+names(foil_vs_distant)[1] <- "ID"
+names(foil_vs_distant)[2] <- "távoli_csali"
+names(foil_vs_distant)[3] <- "rec_érték"
+
+all_dprime <- data.frame(sem_mst_ans$ID, close_ldi$dprime, distant_ldi$dprime, rec_dprime$dprime)
+names(all_dprime)[1] <- "ID"
+names(all_dprime)[2] <- "közeli_csali"
+names(all_dprime)[3] <- "távoli_csali"
+names(all_dprime)[4] <- "rec_érték"
+
+```
+
+Converting to long format
+
+```{r}
+
+
+#converting to long format
+foil_vs_distant$ID <- factor(foil_vs_distant$ID)
+foil_vs_distant_long <- gather(foil_vs_distant, dprime_típus, pontszam, távoli_csali:rec_érték, factor_key = TRUE)
+
+ldis$ID <- factor(ldis$ID)
+ldis_long <- gather(ldis, dprime_típus, pontszam, közeli_csali:távoli_csali, factor_key = TRUE)
+
+all_dprime_long <- all_dprime %>%
+  gather(key = "dprime_típus", value = "dprime_érték", közeli_csali, távoli_csali, rec_érték) %>%
+  convert_as_factor(ID, dprime_típus) %>%
+  mutate(dprime_típus = factor(dprime_típus, labels=c("target vs. close", "target vs. distant", "target vs. foil")))
+
+```
+
+Boxplot of the three d' scores
+
+```{r}
+
+
+bxp_all_dprime <- ggboxplot(all_dprime_long, x = "dprime_típus", y = "dprime_érték", add ="point",
+         color = "dprime_típus", palette = c("#00AFBB", "#E7B800", "#7F5AA2"),
+         order = c("target vs. close", "target vs. distant", "target vs. foil"),
+         #panel.labs = list(dprime_típus = c("target vs. close", "target vs. distant", "target vs. foil")),
+         ylab = "d-prime value (~LDI)", xlab = "Type of d-prime value",
+         title = "d-prime values in the experiment", size = 1.3) + theme(legend.position = "none") + theme(text = element_text(size = 22))
+bxp_all_dprime
+
+all_dprime_long %>%
+  group_by(dprime_típus) %>%
+  identify_outliers(dprime_érték) 
+
+```
+
+
+Repeated measures ANOVA on d' scores
+
+```{r}
+
+
+res_anova <- anova_test(data = all_dprime_long, dv = dprime_érték, wid = ID, within = dprime_típus)
+get_anova_table(res_anova)
+```
+
+
+Calculating difference between lure types
+
+```{r}
+
+
+#summary statistics
+ldis_long %>%
+  group_by(dprime_típus) %>%
+  get_summary_stats(pontszam, type = "mean_sd")
+
+
+#checking normality
+d <- with(ldis_long, 
+        pontszam[dprime_típus == "közeli_csali"] - pontszam[dprime_típus == "távoli_csali"])
+shapiro.test(d)
+
+hist(ldis_long$pontszam,
+     main = "d' értékek eloszlása",
+     xlab = "d' értékek",
+     border = "light blue",
+     col = "#00AFBB",
+     las = 1,
+     breaks = 5)
+
+#res <- t.test(score ~ score_type, data = ldis_long, paired = TRUE)
+
+#t test & cohen's d
+ldi_ttest <- ldis_long %>%
+  t_test(pontszam ~ dprime_típus, paired = TRUE, detailed = TRUE) %>%
+  add_significance()
+ldis_long %>%
+  cohens_d(pontszam ~ dprime_típus, paired = TRUE)
+
+```
+
+
+Plotting t-test of ldis
+
+```{r}
+
+
+ggboxplot(ldis_long, x = "dprime_típus", y = "pontszam", 
+          color = "dprime_típus", palette = c("#00AFBB", "#E7B800"),
+          order = c("közeli_csali", "távoli_csali"),
+          ylab = "d' érték", xlab = "d' érték típusa")
+
+
+```
+
+Calculating difference between distant lures & foils
+
+```{r}
+
+
+#summary statistics
+foil_vs_distant_long %>%
+  group_by(dprime_típus) %>%
+  get_summary_stats(pontszam, type = "mean_sd")
+
+#checking normality
+d_foil_vs_distant <- with(foil_vs_distant_long, 
+        pontszam[dprime_típus == "távoli_csali"] - pontszam[dprime_típus == "rec_érték"])
+shapiro.test(d)
+
+#t test & cohen's d
+rec_ttest <- foil_vs_distant_long %>%
+  t_test(pontszam ~ dprime_típus, paired = TRUE, detailed = TRUE) %>%
+  add_significance()
+foil_vs_distant_long %>%
+  cohens_d(pontszam ~ dprime_típus, paired = TRUE)
+
+
+```
+
+Plotting t test of foils vs distant lures
+
+```{r}
+
+
+ggboxplot(foil_vs_distant_long, x = "dprime_típus", y = "pontszam", 
+          color = "dprime_típus", palette = c("#00AFBB", "#E7B800"),
+          order = c("távoli_csali", "rec_érték"),
+          ylab = "d' érték", xlab = "d' érték típusa")
+```
+
+
+## LMER
+
+### GLMER packages
+```{r}
+require(ggplot2)
+require(GGally)
+require(reshape2)
+require(lme4)
+require(compiler)
+require(parallel)
+require(boot)
+require(lattice)
+```
+
+
+```{r}
+stimuli_data <- read_excel("ingeranyag/stimuli_v1.3.xlsx")
+semmst_data = read_excel("data/collection/2021_april_pilot_Borcsa_szd_longformat.xlsx")
+
+stimuli_data = stimuli_data %>%
+  rename(stimtype = stim_type)
+
+semmst_data_rec = semmst_data %>%
+  filter(ID!="28") %>% #filter because participant "28" had problems with having feedback of button pushed
+  mutate(ID=sub("Virág", "pilotcodex", ID)) %>%
+  filter(phase == "REC") %>%
+  drop_na() %>%
+  mutate(response = recode(response, "f" = "old", "j" = "new")) %>%
+  mutate(correctness = ifelse((stimtype == "TARG" & response == "old") | (stimtype == "CLOSE" & response == "new") | (stimtype == "DISTANT" & response == "new") | (stimtype == "FOIL" & response == "new"), 1, 0))
+
+merged_data_smst <- merge(semmst_data_rec, stimuli_data, by = c("noun", "adjective"))
+
+
+complex_model_1 <- glmer(correctness ~ stimtype.x + ya_ert_mean + (1 | itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+simple_model <- glmer(correctness ~ stimtype.x + (1 | itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+merged_data_smst.complexA = glmer(correctness ~ stimtype.x * ya_ert_mean + (1 + stimtype.x * ya_ert_mean| itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1, control=glmerControl(optCtrl=list(maxfun=1.1*1e5)))
+
+
+
+merged_data_smst.complexB = glmer(correctness ~ stimtype.x * ya_ert_mean + (1|itemno.x) + (0 + stimtype.x * ya_ert_mean| itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+
+
+merged_data_smst.complexC = glmer(correctness ~ stimtype.x * ya_ert_mean + (1 + stimtype.x + ya_ert_mean| itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+
+merged_data_smst.complexD = glmer(correctness ~ stimtype.x * ya_ert_mean + (1|itemno.x) + (0 + stimtype.x + ya_ert_mean| itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+
+merged_data_smst.complexE = glmer(correctness ~ stimtype.x * ya_ert_mean + (1 + stimtype.x | itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+merged_data_smst.complexF = glmer(correctness ~ stimtype.x * ya_ert_mean + (1|itemno.x) + (0 + stimtype.x | itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+merged_data_smst.complexG = glmer(correctness ~ stimtype.x * ya_ert_mean + (1 + ya_ert_mean | itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+merged_data_smst.complexH = glmer(correctness ~ stimtype.x * ya_ert_mean + (1|itemno.x) + (0 + ya_ert_mean | itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+
+merged_data_smst.complexI = glmer(correctness ~ stimtype.x * ya_ert_mean + (1|itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+
+
+merged_data_smst.complexJ = glmer(correctness ~ stimtype.x + (1|itemno.x) + (1|ID), data = merged_data_smst, family = binomial, nAGQ = 1)
+
+
+#summary(complex_model)
+```
+
+
+### Bad LMER
+
+```{r}
+smst_data_rec_rate = semmst_data_rec %>%
+  select(ID, itemno, stimtype, response) %>%
+  group_by(itemno, stimtype) %>%
+  mutate(response_rate = ifelse(stimtype == "TARG", sum(response == "old")/sum(response == "old" | response == "new"), sum(response == "new")/sum(response == "old" | response == "new")))
+
+merged_data_smst <- merge(smst_data_rec_rate, stimuli_data, by = c("itemno", "stimtype"))
+
+#merged_data_smst = merged_data_smst %>%
+  #filter(stimtype != "FOIL") %>%
+  #filter(stimtype != "TARG")
+
+#Models
+merged_data_smst.complexA = lmer(response_rate ~ stimtype*ya_ert_mean + (1 + stimtype*ya_ert_mean|itemno), merged_data_smst)#
+merged_data_smst.complexB = lmer(response_rate ~ stimtype*ya_ert_mean + (1|itemno) + (0 + stimtype*ya_ert_mean|itemno), merged_data_smst)#
+merged_data_smst.complexC = lmer(response_rate ~ stimtype*ya_ert_mean + (1 + stimtype+ya_ert_mean|itemno), merged_data_smst)#
+merged_data_smst.complexD = lmer(response_rate ~ stimtype*ya_ert_mean + (1|itemno) + (0 + stimtype+ya_ert_mean|itemno), merged_data_smst)#
+merged_data_smst.complexE = lmer(response_rate ~ stimtype*ya_ert_mean + (1 + stimtype|itemno) , merged_data_smst)#
+merged_data_smst.complexF = lmer(response_rate ~ stimtype*ya_ert_mean + (1|itemno) + (0 + stimtype|itemno), merged_data_smst)#
+merged_data_smst.complexG = lmer(response_rate ~ stimtype*ya_ert_mean + (1 + ya_ert_mean|itemno), merged_data_smst)#
+merged_data_smst.complexH = lmer(response_rate ~ stimtype*ya_ert_mean + (1|itemno) + (0 + ya_ert_mean|itemno), merged_data_smst)#
+merged_data_smst.complexI = lmer(response_rate ~ stimtype*ya_ert_mean + (1|itemno), merged_data_smst)
+merged_data_smst.complexJ = lmer(response_rate ~ stimtype + (1|itemno), merged_data_smst)
+
+summary(merged_data_smst.complexJ)
+anova(merged_data_smst.complexJ, merged_data_smst.complexI)
+
+summary(merged_data_smst.complexI)
+
+```
+
+
+
+## Additional plots - ENC, confid, etc.
+
+```{r}
+#RTs in enc
+semmst_data_enc %>%
+  group_by(ID, response) %>%
+  ggplot(aes(x = response, y = reaction_time, fill = ID)) +
+    geom_violin() +
+    geom_boxplot(width=0.1, fill = 'white') +
+    facet_wrap(~ID) +
+    labs(title = "Reaction times of encoding responses per response type on Encoding phase of sMST", x = "Response type", y = "Reaction times (RT)", fill = "ID of Participants")
+
+#How much answers?
+semmst_data_enc %>%
+  group_by(ID, response) %>%
+  count() %>%
+  ggplot(aes(x = response, y = n, fill = ID)) +
+    geom_bar(stat = 'identity') +
+    facet_wrap(~ID) +
+    labs(title = "The amount of response types on Encoding phase of sMST", x = "Response type", y = "Amount", fill = "ID of Participants")
+
+
+```
+
+```{r}
+
+#RTs in rec
+semmst_data_rec %>%
+  group_by(ID, response) %>%
+  filter(response != "None") %>%
+  ggplot(aes(x = response, y = reaction_time, fill = ID)) +
+    geom_violin() +
+    geom_boxplot(width=0.1, fill = 'white') +
+    facet_wrap(~ID) +
+    scale_x_discrete(name ="Response by participant", 
+                    labels=c("new","old")) +
+    labs(title = "Reaction time by response on Recognition phase of MST", y = "Reaction time (RT)")
+
+semmst_data_rec %>%
+  group_by(ID, stimtype) %>%
+  filter(response != "None") %>%
+  ggplot(aes(x = stimtype, y = reaction_time, fill = ID)) +
+    geom_violin() +
+    geom_boxplot(width=0.1, fill = 'white') +
+    facet_wrap(~ID) +
+    scale_x_discrete(name ="Type of stimulus presented", 
+                    labels=c("TARG","CLOSE","DISTANT", "FOIL")) +
+    labs(title = "Reaction time by condition on Recognition phase of MST", y = "Reaction time (RT)")
+
+```
+
+
+```{r}
+
+semmst_data_rec %>%
+  group_by(ID, stimtype, response, confidence) %>%
+  filter(response != "None") %>%
+  count() %>%
+  ggplot(aes(x = response, y = n, fill = confidence)) +
+    geom_bar(stat = 'identity', position='dodge') +
+    facet_grid(ID~stimtype) +
+    labs(title = "The amount of confidence responses by response types and conditions on Encoding phase of sMST", x = "Response type", y = "Amount", fill = "Confidence responses") +
+    scale_fill_discrete(labels = c("1 - guess", "2 - not sure", "3 - sure"))
+
+
+semmst_data_rec %>%
+  group_by(ID, stimtype, response, confidence) %>%
+  filter(response != "None") %>%
+  count() %>%
+  ggplot(aes(x = response, y = n, fill = confidence)) +
+    geom_bar(stat = 'identity', position='dodge') +
+    geom_point(position = position_jitterdodge(dodge.width = 1, jitter.width=0.2)) +
+    facet_wrap(~stimtype) +
+    labs(title = "The amount of confidence responses by response types and conditions on Encoding phase of sMST", x = "Response type", y = "Amount", fill = "Confidence responses") +
+    scale_fill_discrete(labels = c("1 - guess", "2 - not sure", "3 - sure"))
+
+```
+

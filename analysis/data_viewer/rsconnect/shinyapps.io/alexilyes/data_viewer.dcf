@@ -1,0 +1,11 @@
+name: data_viewer
+title:
+username:
+account: alexilyes
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 6720473
+bundleId: 6151762
+url: https://alexilyes.shinyapps.io/data_viewer/
+when: 1659320275.41264
+lastSyncTime: 1659320275.41264
