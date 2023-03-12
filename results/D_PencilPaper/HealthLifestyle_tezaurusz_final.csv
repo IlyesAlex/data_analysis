@@ -1,0 +1,81 @@
+﻿ID,korosztaly,kor,nem,alkohol_24ora_mennyiseg,alkohol_24ora_ido,alkohol_rendszeres_gyakorisag,alkohol_rendszeres_mennyiseg,koffein_24ora,koffein_24_óra_egység1,koffein_24_óra_idõ1,koffein_24_óra_fajta1,koffein_24_óra_egység2,koffein_24_óra_idõ2,koffein_24_óra_fajta2,koffein_rendszeres_kave,koffein_rendszeres_tea,koffein_rendszeres_energiaital,koffein_rendszeres_szensavas_udito,koffein_rendszeres_gyakorisag,koffein_rendszeres_mennyiseg,alvas_tegnap_mennyiseg,alvas_atlagos_mennyiseg,testmozgas_rendszeres_milyet,testmozgas_jelenleg,testmozgas_rendszeres_miota,testmozgas_rendszeres_gyakorisag,ules_atlagos_idotartam,nikotin_24ora,nikotin_24ora_mennyiseg,Nikotin_rendszeres_fajták,nikotin_rendszeres_gyakorisag,nikotin_rendszeres_mennyiseg
+663878,YA,20,nõ,0,0,3-5 alkalommal egy héten,5,0,0,0,egység,0,0,egység,0,0,0,0,3-5 alkalommal egy héten,0.5,"kevesebb, mint 5 óra","kevesebb, mint 5 óra","tánc, küzdõsport",,0.5,heti 8-10 óra,5.5,NA,NA,NA,NA,NA
+548792,YA,21,férfi,3,12,minden nap,4,0,0,0,egység,0,0,egység,1,0,0,0,csak különleges alkalmakon,2,6-7 óra,6-7 óra,"labdajáték, futás, súlyzós edzés",,15,heti 5-8 óra,8,NA,NA,NA,NA,NA
+104096,YA,21,nõ,0,0,minden nap,2,1,1,7,kávé,0,0,egység,1,0,0,0,soha,1,6-7 óra,6-7 óra,"súlyzós edzés, tánc, küzdõsport",,14,heti 5-8 óra,3.5,NA,NA,NA,NA,NA
+158228,YA,20,nõ,0,0,3-5 alkalommal egy héten,10,1,1,3,kávé,0,0,egység,1,1,0,1,soha,1,7-8 óra,7-8 óra,"tánc, futás, jóga",,2,"több, mint heti 10 óra",10,NA,NA,NA,NA,NA
+76057,OA,84,nõ,1,21,minden nap,2,0,0,0,egység,0,0,egység,1,1,0,0,3-5 alkalommal egy héten,1,"kevesebb, mint 5 óra","kevesebb, mint 5 óra",torna,,5,heti 8-10 óra,2.5,NA,NA,NA,NA,NA
+30718,OA,73,férfi,0,0,NA,0,1,1,3,kávé,0,0,egység,1,0,0,1,soha,1,7-8 óra,7-8 óra,kertészkedés,,6,"több, mint heti 10 óra",5.5,NA,NA,NA,NA,NA
+198059,YA,19,nõ,2,17,3-5 alkalommal egy héten,2,1,1,4,kávé,0,0,egység,1,1,0,1,soha,2,5-6 óra,5-6 óra,"tánc, labdajáték, súlyzós edzés",,6,heti 5-8 óra,5,NA,NA,NA,NA,NA
+430442,YA,20,férfi,0,0,minden nap,5,1,1,23,energiaital,0,0,egység,0,0,0,0,3-5 alkalommal egy héten,1,6-7 óra,6-7 óra,"úszás, küzdõsport, labdajáték, futás, biciklizés, súlyzós edzés",,16,heti 5-8 óra,5,NA,NA,NA,NA,NA
+384825,OA,72,nõ,0,0,minden nap,1,1,1,6,kávé,0,0,egység,1,0,0,0,soha,2,6-7 óra,6-7 óra,"kertészkedés, gyaloglás",,50,heti 2-5 óra,6,NA,NA,NA,NA,NA
+5704,OA,69,férfi,0,0,minden nap,1,1,2,3,kávé,0,0,egység,1,1,0,0,soha,2,6-7 óra,6-7 óra,biciklizés,,6,"több, mint heti 10 óra",6.5,NA,NA,NA,NA,NA
+704497,OA,71,férfi,0,0,minden nap,1,0,0,0,egység,0,0,egység,0,0,0,1,csak különleges alkalmakon,1,6-7 óra,6-7 óra,nem,,0,"több, mint heti 10 óra",6,NA,NA,NA,NA,NA
+898339,YA,21,férfi,1,15,3-5 alkalommal egy héten,2.5,1,1,18,kávé,0,0,egység,1,0,0,0,csak különleges alkalmakon,1,6-7 óra,6-7 óra,"labdajáték, futás, úszás",,6,heti 8-10 óra,6,NA,NA,NA,NA,NA
+801231,YA,22,nõ,0,0,minden nap,2.5,0,0,0,egység,0,0,egység,0,1,0,0,soha,1,7-8 óra,7-8 óra,"tánc, labdajáték, küzdõsport, torna",,1.5,heti 5-8 óra,8,NA,NA,NA,NA,NA
+124080,OA,72,férfi,1,16,egyszer egy héten,1,0,0,0,egység,0,0,egység,0,0,0,0,3-5 alkalommal egy héten,1,5-6 óra,5-6 óra,"súlyzós edzés, úszás, gyaloglás",,10,heti 5-8 óra,3,NA,NA,NA,NA,NA
+85639,OA,71,nõ,0,0,minden nap,2.5,1,1,2,kávé,0,0,egység,1,1,0,0,soha,2.5,5-6 óra,5-6 óra,"gyaloglás, úszás, torna","gyaloglás, torna",15,heti 8-10 óra,4.5,NA,NA,NA,NA,NA
+220502,OA,63,nõ,0,0,3-5 alkalommal egy héten,2,1,1,9,kávé,0,0,egység,1,1,0,0,soha,1.5,7-8 óra,7-8 óra,nem,,0,"több, mint heti 10 óra",5,NA,NA,NA,NA,NA
+729477,YA,23,nõ,0,0,3-5 alkalommal egy héten,5,1,1,5,energiaital,0,0,egység,1,0,1,1,soha,3,7-8 óra,7-8 óra,jóga,jóga,2,"több, mint heti 10 óra",10,NA,NA,NA,NA,NA
+36190,YA,21,nõ,0,0,3-5 alkalommal egy héten,3,1,1,4,kávé,0,0,egység,1,1,0,1,soha,2,5-6 óra,5-6 óra,"úszás, tánc, küzdõsport, futás, súlyzós edzés, jóga, torna","torna, jóga, futás, súlyzós edzés",3,heti 5-8 óra,8,NA,NA,NA,NA,NA
+6150,OA,70,nõ,0,0,minden nap,2,1,1,3,kávé,0,0,egység,0,0,0,0,NA,0,7-8 óra,7-8 óra,"tánc, gyaloglás","gyaloglás, tánc",10,"kevesebb, mint heti 2 óra",3.5,NA,NA,NA,NA,NA
+93503,YA,21,nõ,6,12,egyszer egy héten,3,1,1,0.2,kávé,0,0,egység,1,1,1,0,soha,2,6-7 óra,6-7 óra,nem,,0,NA,4,NA,NA,NA,NA,NA
+573588,YA,26,nõ,1,22,minden nap,2,1,1,4,kávé,1,10,egység,1,0,1,0,soha,2,6-7 óra,6-7 óra,"labdajáték, biciklizés, úszás, gyaloglás, futás","gyaloglás, futás, labdajáték",10,heti 8-10 óra,11,NA,NA,NA,NA,NA
+433288,YA,21,nõ,2,16,minden nap,2,0,0,0,egység,0,0,egység,1,1,0,0,soha,1.5,"kevesebb, mint 5 óra","kevesebb, mint 5 óra","egyéb, súlyzós edzés",súlyzós edzés,17,heti 5-8 óra,9.5,NA,NA,NA,NA,NA
+854499,OA,75,férfi,0,0,minden nap,0.5,1,1,3,egység,1,22,egység,1,1,0,0,soha,2,6-7 óra,6-7 óra,gyaloglás,gyaloglás,65,heti 2-5 óra,3,NA,NA,NA,NA,NA
+626942,YA,24,férfi,0,0,NA,0,0,0,0,egység,0,0,egység,0,0,0,0,minden nap,0,5-6 óra,5-6 óra,"egyéb, futás",futás,3,heti 8-10 óra,5,NA,NA,NA,NA,NA
+734689,OA,67,nõ,1,0,egyszer egy héten,1,1,1,3,kávé,0,0,egység,1,1,0,0,soha,3,7-8 óra,7-8 óra,"úszás, gyaloglás","gyaloglás, úszás",30,heti 2-5 óra,7.5,NA,NA,NA,NA,NA
+459283,YA,26,férfi,0,0,3-5 alkalommal egy héten,2,0,0,0,egység,0,0,egység,0,0,0,0,minden nap,0,5-6 óra,5-6 óra,"egyéb, labdajáték, tánc","labdajáték, egyéb",20,heti 8-10 óra,10,NA,NA,NA,NA,NA
+483932,YA,24,nõ,0,0,NA,0,1,1,1.5,szénsavas üdítõ,0,0,egység,1,1,0,1,egyszer egy héten,1,7-8 óra,7-8 óra,"tánc, futás",,0,"több, mint heti 10 óra",8,NA,NA,NA,NA,NA
+664334,YA,22,férfi,6,20,3-5 alkalommal egy héten,4,0,0,0,egység,0,0,egység,0,1,0,1,csak különleges alkalmakon,1.5,6-7 óra,6-7 óra,"súlyzós edzés, úszás, futás, labdajáték",súlyzós edzés,0.5,heti 8-10 óra,9,NA,NA,NA,NA,NA
+808485,YA,19,nõ,1,20,egyszer egy héten,4.5,1,1,4,kávé,0,0,egység,1,1,0,0,soha,1,5-6 óra,5-6 óra,"tánc, futás, súlyzós edzés",súlyzós edzés,2,heti 8-10 óra,5.5,1,5,elektromos cigaretta,4,4
+690719,YA,21,nõ,0,0,3-5 alkalommal egy héten,1.5,1,1,4,kávé,0,0,egység,1,0,0,0,csak különleges alkalmakon,1,5-6 óra,5-6 óra,nem,,0,"több, mint heti 10 óra",3.5,0,0,nincs,0,0
+568568,OA,73,nõ,1,17,csak különleges alkalmakon,2,1,1,5,kávé,0,0,egység,1,1,0,0,soha,2,5-6 óra,5-6 óra,kertészkedés,kertészkedés,18,"kevesebb, mint heti 2 óra",2.5,1,1,cigaretta,4,5
+756279,YA,21,nõ,1,20,3-5 alkalommal egy héten,2.5,0,0,0,egység,0,0,egység,0,1,0,1,csak különleges alkalmakon,1,6-7 óra,6-7 óra,nem,,0,NA,3.5,0,0,nincs,0,0
+676145,YA,21,nõ,1,12,minden nap,4,1,1,2,kávé,0,0,egység,1,1,0,0,soha,2,7-8 óra,7-8 óra,"labdajáték, torna, egyéb, futás, tánc, úszás",labdajáték,15,heti 8-10 óra,8.5,0,0,nincs,0,0
+292991,YA,20,nõ,0,0,minden nap,3,1,1,4,kávé,0,0,egység,1,0,0,0,soha,2,5-6 óra,5-6 óra,"küzdõsport, futás","futás, küzdõsport",13,heti 5-8 óra,10,0,0,nincs,0,0
+401526,YA,21,nõ,0,0,minden nap,2,1,1,NA,kávé,0,0,egység,1,1,0,0,csak különleges alkalmakon,1,5-6 óra,5-6 óra,"tánc, torna",tánc,8,heti 8-10 óra,4,0,0,nincs,0,0
+211099,YA,27,férfi,0,0,minden nap,3,0,0,0,egység,0,0,egység,1,0,0,0,egyszer egy héten,1,5-6 óra,5-6 óra,"úszás, súlyzós edzés",úszás,1,"több, mint heti 10 óra",5,0,0,nincs,0,0
+697600,YA,20,nõ,0,0,minden nap,2,1,1,4,kávé,0,0,egység,1,0,0,0,csak különleges alkalmakon,1.5,5-6 óra,5-6 óra,"úszás, labdajáték, tánc",tánc,7,heti 8-10 óra,7,0,0,nincs,0,0
+235864,YA,20,nõ,2,18,egyszer egy héten,2,0,0,0,egység,0,0,egység,0,1,0,1,egyszer egy héten,1,5-6 óra,5-6 óra,"labdajáték, tánc, egyéb", egyéb,5,"több, mint heti 10 óra",13,0,0,elektromos cigaretta,1,1
+38953,YA,21,nõ,0,0,egyszer egy héten,3,1,2,2,kávé,1,11,egység,1,1,0,1,soha,2,5-6 óra,5-6 óra,"futás, egyéb, biciklizés, gyaloglás",gyaloglás,10,heti 8-10 óra,12,0,0,"cigaretta, tubák",1,3
+878924,OA,71,nõ,0,0,NA,0,1,1,6,kávé,0,0,egység,1,0,0,0,soha,2,6-7 óra,6-7 óra,nem,,0,"több, mint heti 10 óra",10,0,0,nincs,0,0
+658018,YA,24,nõ,0,0,egyszer egy héten,2.5,1,2,11,kávé,0,0,egység,1,1,0,0,soha,2.5,7-8 óra,7-8 óra,"torna, labdajáték, tánc, jóga, egyéb",jóga,3,heti 5-8 óra,7,0,0,cigaretta,1,1.5
+871070,YA,25,nõ,0,0,3-5 alkalommal egy héten,3.5,1,1,2,kávé,0,0,egység,1,1,0,0,soha,2.5,7-8 óra,7-8 óra,futás,futás,2,"több, mint heti 10 óra",7,0,0,nincs,0,0
+392539,YA,24,nõ,0,0,minden nap,2,0,0,0,egység,0,0,egység,0,1,0,1,csak különleges alkalmakon,2,5-6 óra,5-6 óra,"biciklizés, futás","futás, biciklizés",4,heti 5-8 óra,13,0,0,nincs,0,0
+938383,OA,66,nõ,0,0,minden nap,2,1,1,4,kávé,0,0,egység,1,1,0,0,soha,2,5-6 óra,5-6 óra,"torna, úszás, súlyzós edzés",torna,40,"több, mint heti 10 óra",8,1,1,cigaretta,4,15
+775124,YA,19,nõ,0,0,3-5 alkalommal egy héten,4,0,0,0,egység,0,0,egység,1,1,1,0,csak különleges alkalmakon,1.5,6-7 óra,6-7 óra,"küzdõsport, egyéb", egyéb,0.5,heti 8-10 óra,10,0,0,cigaretta,3,3
+993115,YA,23,férfi,0,0,3-5 alkalommal egy héten,3,1,1,8,kávé,0,0,egység,1,0,0,0,soha,1,5-6 óra,5-6 óra,"súlyzós edzés, labdajáték, tánc","súlyzós edzés, tánc, labdajáték",2,heti 2-5 óra,10,0,0,nincs,0,0
+851046,OA,71,nõ,0,0,minden nap,1,1,1,4,kávé,0,0,egység,1,0,0,0,soha,2,6-7 óra,6-7 óra,gyaloglás,gyaloglás,14,heti 8-10 óra,5,0,0,nincs,0,0
+806000,OA,71,nõ,0,0,minden nap,4,1,1,2,kávé,0,0,egység,1,1,0,0,soha,5,5-6 óra,5-6 óra,"úszás, torna",úszás,30,heti 8-10 óra,8,0,0,nincs,0,0
+696365,OA,71,nõ,0,0,NA,0,1,1,8,kávé,0,0,egység,1,0,0,0,soha,2,6-7 óra,6-7 óra,jóga,jóga,12,heti 8-10 óra,5,0,0,nincs,0,0
+728692,YA,20,nõ,0,0,minden nap,6,1,1,9,kávé,0,0,egység,1,0,0,0,soha,1,6-7 óra,6-7 óra,nem,,0,"több, mint heti 10 óra",6.5,0,0,nincs,0,0
+4077,YA,20,nõ,2,10,minden nap,2.5,1,1,3,egység,0,0,egység,0,1,0,1,soha,2,"több, mint 8 óra","több, mint 8 óra","jóga, tánc, egyéb", egyéb,5,heti 8-10 óra,5,0,0,nincs,0,0
+337352,YA,19,nõ,0,0,minden nap,4,1,1,5,kávé,1,20,egység,1,1,0,0,soha,2,6-7 óra,6-7 óra,labdajáték,labdajáték,11,"kevesebb, mint heti 2 óra",6,0,0,nincs,0,0
+483574,OA,65,nõ,3,17,csak különleges alkalmakon,2,1,3,3.5,egység,1,8.5,egység,1,0,0,0,soha,3,5-6 óra,5-6 óra,"torna, kertészkedés","torna, kertészkedés",15,"kevesebb, mint heti 2 óra",2,1,1,cigaretta,4,10
+988938,OA,71,nõ,1,23,egyszer egy héten,1,1,3,5,kávé,0,0,egység,1,1,0,0,soha,3,6-7 óra,6-7 óra,"jóga, gyaloglás, egyéb, úszás","gyaloglás, jóga",30,heti 5-8 óra,4.5,0,0,nincs,0,0
+909857,OA,73,nõ,0,0,minden nap,0.5,1,1,5,egység,0,0,egység,1,0,0,0,soha,1,"több, mint 8 óra","több, mint 8 óra","gyaloglás, torna, biciklizés","gyaloglás, biciklizés",23,heti 5-8 óra,4.5,0,0,nincs,0,0
+924863,OA,65,nõ,0,0,minden nap,2,1,1,7.5,egység,1,21,egység,1,1,0,1,soha,2,6-7 óra,6-7 óra,"jóga, gyaloglás, biciklizés, torna","torna, biciklizés",12,heti 8-10 óra,5,0,0,nincs,0,0
+631197,OA,68,nõ,0,0,minden nap,1,1,1,0.08,egység,0,0,egység,1,0,0,1,soha,2,6-7 óra,6-7 óra,"biciklizés, torna, gyaloglás","gyaloglás, torna, biciklizés",65,heti 5-8 óra,2,0,0,nincs,0,0
+272304,OA,68,férfi,0,0,NA,0,1,1,4,egység,0,0,egység,1,1,0,0,soha,5,7-8 óra,7-8 óra,"egyéb, gyaloglás",,0,heti 8-10 óra,7,0,0,nincs,0,0
+343064,OA,71,nõ,0,0,NA,0,1,1,4.5,egység,0,0,egység,1,0,0,0,soha,3,"kevesebb, mint 5 óra","kevesebb, mint 5 óra","gyaloglás, tánc, kertészkedés","gyaloglás, kertészkedés",40,heti 5-8 óra,4,0,0,nincs,0,0
+954830,OA,71,nõ,0,0,NA,0,1,1,0.08,egység,0,0,egység,1,1,0,0,csak különleges alkalmakon,2,6-7 óra,6-7 óra,"úszás, gyaloglás",gyaloglás,30,heti 8-10 óra,7,0,0,nincs,0,0
+421865,OA,66,nõ,0,0,minden nap,4,1,1,6,egység,0,0,egység,1,0,0,0,soha,1.5,5-6 óra,5-6 óra,"torna, gyaloglás",gyaloglás,16,heti 5-8 óra,12,1,1,"cigaretta, nikotin tapasz",4,20
+505193,OA,68,nõ,0,0,minden nap,2.5,1,1,11,egység,0,0,egység,1,0,0,0,soha,1,6-7 óra,6-7 óra,nem,,0,"több, mint heti 10 óra",9,0,0,nincs,0,0
+924806,OA,65,nõ,0,0,minden nap,2,1,4,3,egység,0,0,egység,1,0,0,0,soha,3,5-6 óra,5-6 óra,"tánc, gyaloglás",gyaloglás,3,heti 5-8 óra,9,0,0,nincs,0,0
+733782,OA,71,nõ,1,16,minden nap,1.5,1,1,3,egység,1,3,egység,1,0,0,0,soha,2.5,6-7 óra,6-7 óra,"torna, gyaloglás, jóga","gyaloglás, torna, jóga",40,heti 2-5 óra,10,0,0,nincs,0,0
+288292,OA,70,férfi,3,12,minden nap,2.5,1,1,3,egység,0,0,egység,1,1,0,0,soha,4,6-7 óra,6-7 óra,kertészkedés,kertészkedés,22,heti 8-10 óra,11,0,0,nincs,0,0
+421568,OA,65,nõ,1,14,3-5 alkalommal egy héten,1,1,1,4,egység,0,0,egység,1,0,0,0,soha,2,"kevesebb, mint 5 óra","kevesebb, mint 5 óra","gyaloglás, torna, úszás","torna, úszás",20,heti 8-10 óra,13,0,0,nincs,0,0
+123479,OA,67,nõ,1,3,csak különleges alkalmakon,2,1,1,10,egység,0,0,egység,1,1,0,0,soha,1,5-6 óra,5-6 óra,"úszás, torna, tánc, kertészkedés","tánc, kertészkedés",28,"kevesebb, mint heti 2 óra",5,0,0,nincs,0,0
+997941,OA,68,nõ,0,0,3-5 alkalommal egy héten,0.5,0,0,0,egység,0,0,egység,1,0,0,0,3-5 alkalommal egy héten,1,"kevesebb, mint 5 óra","kevesebb, mint 5 óra",gyaloglás,,0,"több, mint heti 10 óra",12,0,0,nincs,0,0
+593958,OA,70,nõ,0,0,NA,0,1,1,12,egység,0,0,egység,1,0,0,0,soha,1,7-8 óra,7-8 óra,gyaloglás,gyaloglás,15,heti 5-8 óra,5,0,0,nincs,0,0
+357990,OA,67,nõ,1,8,3-5 alkalommal egy héten,1,0,0,0,egység,0,0,egység,0,0,0,0,NA,0,6-7 óra,6-7 óra,"úszás, biciklizés","úszás, biciklizés",1,heti 5-8 óra,8,0,0,nincs,0,0
+928116,OA,72,nõ,0,0,minden nap,1,1,1,4,egység,1,8,egység,1,0,0,0,soha,2.5,6-7 óra,6-7 óra,jóga,jóga,32,heti 8-10 óra,3,0,0,nincs,0,0
+414789,OA,67,nõ,0,0,minden nap,2,1,1,6.5,egység,0,0,egység,1,0,0,0,soha,3,5-6 óra,5-6 óra,"labdajáték, torna",labdajáték,6,heti 8-10 óra,6,0,0,nincs,0,0
+604647,OA,80,férfi,0,0,3-5 alkalommal egy héten,1,1,1,3,egység,1,10,egység,1,1,0,0,soha,3,7-8 óra,7-8 óra," gyaloglás, torna","gyaloglás, torna",30,heti 2-5 óra,6,0,0,nincs,0,0
+150196,OA,66,nõ,1,16,egyszer egy héten,2,1,1,4,egység,0,0,egység,1,1,0,0,soha,1,5-6 óra,5-6 óra,"jóga, gyaloglás, torna, súlyzós edzés","gyaloglás, torna, jóga",16,heti 8-10 óra,5,0,0,nincs,0,0
+189616,OA,70,nő,0,0,NA,0,0,0,0,NA,0,0,NA,0,0,0,0,NA,0,NA,NA,NA,NA,0,NA,0,0,0,NA,0,0
+564241,YA,22,férfi,0,0,minden nap,5,1,2,4,kávé,0,0,egység,1,0,0,1,soha,2,5-6 óra,5-6 óra,nem,,0,NA,12,NA,NA,NA,NA,NA
+681251,YA,22,nõ,0,0,3-5 alkalommal egy héten,5,1,1,4,kávé,0,0,egység,1,0,1,1,soha,2,5-6 óra,5-6 óra,nem,,0,NA,8,NA,NA,NA,NA,NA
+396251,YA,21,nõ,0,0,minden nap,4,0,0,0,egység,0,0,egység,0,0,0,0,minden nap,0,5-6 óra,5-6 óra,"súlyzós edzés, küzdõsport",,7,heti 2-5 óra,3,NA,NA,NA,NA,NA
+417089,YA,22,nõ,1,20,minden nap,3,1,1,3,szénsavas üdítõ,1,9,kávé,1,1,0,1,soha,2,5-6 óra,5-6 óra,labdajáték,,15,heti 5-8 óra,4.5,NA,NA,NA,NA,NA
+449122,YA,23,férfi,0,0,3-5 alkalommal egy héten,3,0,0,0,egység,0,0,egység,0,0,0,0,minden nap,0,5-6 óra,5-6 óra,"futás, küzdõsport, labdajáték",,17,heti 2-5 óra,8,NA,NA,NA,NA,NA
