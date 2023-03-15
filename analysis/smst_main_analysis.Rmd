@@ -3054,8 +3054,8 @@ semmst_data_final %>%
     sm_statCorr(fit.params = list(color = 'black',
                                    linetype = 'dashed'), text_size = 10) +
     custom_theme +
-    labs(x = "Lure Discrimination Index in MST", y = "D-prime scores of targ. vs. all lures - discriminability", title = "Correlation of dprimes in our main task\nand the LDI scores in the original MST") +
-    theme(legend.position = "right") + guides(colour = FALSE)
+    labs(x = "Lure Discrimination Index in MST", y = "D-prime scores of targ. vs. all lures - discriminability", title = "Correlation of dprimes in the sMST\nand the LDI scores in the original MST") +
+    theme(legend.position = "none") + guides(colour = FALSE)
 
 ### Correlation matrices
 #### COGNITIVE
