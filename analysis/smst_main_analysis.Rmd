@@ -1907,7 +1907,7 @@ semmst_data_final_clean_GLMEM = semmst_data_final_clean %>%
   mutate(across(c(ya_aro_mean, ya_ert_mean, adj_freq, noun_freq, oa_aro_mean, oa_ert_mean, adj_phon), .fns = list(log = ~log(.x+1-min(.x))))) %>% 
   mutate(across(where(is.numeric), .fns = list(scale = scale))) %>% 
   mutate(AgeGroup = relevel(AgeGroup, "YA")) %>% 
-  mutate(stimtype_REC = relevel(stimtype_REC, "TARG")) %>% 
+  mutate(stimtype_REC = relevel(stimtype_REC, "FOIL")) %>% 
   mutate(response_REC = as.factor(response_REC))
 
   
@@ -2208,24 +2208,28 @@ model_complex_participants_cognitive_health = glmer(response_REC ~ stimtype_REC 
 summary(model_complex_participants_cognitive_health)
 broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE) %>%  print(n = 70)
 r2(model_complex_participants_cognitive_health)
-### AIC = 9026.7; R2 = 0.475
+### AIC = 9022.9; R2 = 0.475
 #### Significant main effects of cond
-### CLOSE: estimate = -0.887, p < 0.001
-### DISTANT: estimate = -1.649, p < 0.001
-### FOIL: estimate = -1.554, p < 0.001
+### TARG: estimate = 8.96, p < .001
+### CLOSE: estimate = 1.92, p < .001
+### DISTANT: estimate = 1.17, p = .096
 #### N.s. AgeGroup effect
-### Age: estimate = 0.029, p = 0.944
+### Age: estimate = 1.44, p = .42
 #### Significant interactions
-### CLOSE * Age: estimate = -0.652, p < 0.001
-### DISTANT * Age: estimate = -0.388, p < 0.001
-### FOIL * Age: estimate = -0.637, p < 0.001
+### TARG * Age: estimate = .53, p < .001
+### DISTANT * Age: estimate = .78, p = .05
+#### N.s. interaction
+### CLOSE * Age: estimate = 1.01, p = .91
 #### Covariates
-### AgeYA * Digit_Symbol: estimate = -0.185, p = 0.029
-### AgeOA * Non_word_sum_scale: estimate = 0.162895, p = 0.011
-### FOIL * noun_freq: estimate = 0.076, p = 0.020
-### CLOSE * Age * oa_konk: estimate = -0.195, p = 0.025
-### CLOSE * Age * ya_konk: estimate = 0.232, p = 0.014
-### CLOSE * Age * ya_aro: estimate = 0.271, p = 0.006
+### AgeYA * Digit_Symbol: estimate = 0.83, p = .03
+### AgeOA * Non_word_sum_scale: estimate = 1.15, p = .02
+### AgeYA * MST_ldi: estimate = 0.88, p = 0.05
+### FOIL * noun_freq: estimate = 1.08, p = .02
+### TARG * noun_freq: estimate = 0.93, p = .01
+### CLOSE * AgeYA * oa_konk: estimate = 0.81, p = .04
+### CLOSE * AgeYA * ya_konk: estimate = 1.47, p < .001
+### DISTANT * AgeYA * ya_konk:estimate = 1.31, p < .01
+### CLOSE * AgeOA * ya_konk: estimate = 1.20, p = .04
 
 model_optimal_participants_cognitive_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
                                         #stimtype_REC * AgeGroup * Beck_scale +
@@ -3207,7 +3211,38 @@ semmst_data_final_clean %>%
     
   
 
+```
 
+## Old rate - sem sim
+
+```{r}
+
+semmst_data_final_clean %>%
+  select(adjective_REC, noun, AgeGroup, stimtype_REC, response_REC, cosine_metric) %>%
+  group_by(AgeGroup, stimtype_REC, response_REC, noun) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  distinct() %>% 
+  complete(nesting(AgeGroup), 
+           nesting(stimtype_REC, noun, adjective_REC, response_REC, cosine_metric),
+           fill = list(n = 0)) %>%
+  group_by(AgeGroup, stimtype_REC, noun) %>%
+  mutate(response_rate=n/sum(n)) %>% 
+  ungroup() %>% 
+  group_by(stimtype_REC, noun) %>%
+  filter(response_REC == "old") %>% arrange(noun) %>% 
+  filter(AgeGroup == "YA") %>% 
+  filter(stimtype_REC == "CLOSE") %>%  
+  fill(cosine_metric) %>% print(n = 900) %>% 
+  ggplot(aes(x = cosine_metric, y = response_rate)) +
+    geom_point(size = 6, colour = "#4472C4", alpha = 0.75) +
+    geom_smooth(method= "lm", colour = "#5A5A5A", size = 1.2) +
+    custom_theme +
+    #ggtitle("False alarms to verbal similar lures based on \n semantic similarity in word2vec by 40 young adults") +
+    xlab("Semantic similarity") + ylab("False alarm rate") +
+    scale_y_continuous(labels = scales::percent)
+    #facet_wrap(~AgeGroup)
+  
 
 ```
 
