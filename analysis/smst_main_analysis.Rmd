@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-# Packages needed
+# Packages needed and theme for plots
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -28,6 +28,9 @@ library(readxl)
 library(tidyr)
 library(cluster)
 library(ggstatsplot)
+library(sjPlot)
+library(smplot2)
+
 
 theme_set(theme_light())
 
@@ -40,13 +43,20 @@ custom_theme = theme(
       legend.text = element_text(vjust = 0.5, hjust=0.5, size = 25, face="bold"),
       legend.title = element_text(vjust = 0.5, hjust=0.5, size = 26, face="bold"),
       strip.text = element_text(vjust = 0.5, hjust=0.5, size = 22, face="bold"),
-      plot.margin = margin(30, 30, 30, 30)
+      plot.margin = margin(30, 30, 30, 30),
+      panel.border = element_blank(),
+      panel.grid.major = element_blank(), 
+      panel.grid.minor = element_blank(),
+      panel.background = element_blank(), 
+      axis.line = element_line(colour = "black")
       )
 
 
 ```
 
 # DEMOGRAPHY
+
+Get mean age and distribution of sex
 
 ```{r}
 
@@ -202,7 +212,7 @@ health_data = read_excel("data/D_PencilPaper/papir_ceruza_logs.xlsx", sheet = 2)
 
 ```
 
-## Create D-prime dataframe
+## Create D-prime dataframe for ANOVA
 
 ```{r}
 
@@ -394,19 +404,1666 @@ semmst_data_final_clean = semmst_data_final_clean%>%
 
 
 
-# Plots
+# STATS
+## Basic stats
 
-## Base plots
-
+Reaction times
 
 ```{r}
 
-semmst_data_final_clean %>% 
-  select(ID, AgeGroup, stimtype_REC, reaction_time_REC, response_ENC, response_REC)
+smst_enc_rtdata = semmst_data_final_clean %>% 
+  group_by(ID, AgeGroup) %>% 
+  summarise(mean_enc_rt = mean(reaction_time_ENC)) %>% 
+  ungroup()
+
+smst_rec_rtdata = semmst_data_final_clean %>% 
+  group_by(ID, AgeGroup) %>% 
+  summarise(mean_rec_rt = mean(reaction_time_REC)) %>% 
+  ungroup()
+  
+t.test(mean_enc_rt ~ AgeGroup, data = smst_enc_rtdata)
+## OA mean: 1.243; YA mean: 1.273
+## t = -1.1435, df = 78, p = 0.2563
+t.test(mean_rec_rt ~ AgeGroup, data = smst_rec_rtdata)
+## OA mean: 1.74; YA mean: 1.447
+## t = 6.7932, df = 78, p < .001
+
+```
+
+Accuracy
+
+```{r}
+accuracy_table = semmst_data_final_clean %>% 
+  group_by(AgeGroup, ID, correctness) %>%
+  summarise(cnt = n()) %>% 
+  mutate(percent_correct=cnt/sum(cnt)) %>% 
+  filter(correctness == 1) %>% 
+  arrange(desc(percent_correct))
+
+
+t.test(percent_correct ~ AgeGroup, data = accuracy_table)
+## t = -4.06, df = 76.97, p = 0.00012
+## OA mean: 0.73 YA mean: 0.81
+
+accuracy_table %>% group_by(AgeGroup) %>% 
+  summarise(resp_rate = mean(percent_correct), resp_sd = sd(percent_correct))
+
+```
+
+
+Encoding response
+
+```{r}
+
+encresp_table = semmst_data_final_clean %>% 
+  filter(response_ENC == "good" | response_ENC == "no-good") %>%
+  group_by(AgeGroup, ID, response_ENC) %>%
+  summarise(cnt = n()) %>% 
+  mutate(percent_resp=cnt/sum(cnt)) %>% 
+  filter(response_ENC == "good") %>% 
+  arrange(desc(percent_resp))
+
+t.test(percent_resp ~ AgeGroup, data = encresp_table)
+## t = 3.34, df = 71.36, p-value = 0.001321
+## OA mean: 0.82 YA mean: 0.74
+
+encresp_table %>% group_by(AgeGroup) %>% 
+  summarise(resp_rate = mean(percent_resp), resp_sd = sd(percent_resp))
+
+```
+
+
+## STIMULI T-TESTS
+
+### Young Adult scores
+
+```{r}
+
+# Model
+
+model_stim_ert_ya <- aov(ya_ert_mean ~ stimtype_REC, data = smst_stim_list_complex)
+summary(model_stim_ert_ya)
+# Significant F = 38.06, p < .001
+model_stim_konk_ya <- aov(ya_konk_mean ~ stimtype_REC, data = smst_stim_list_complex)
+summary(model_stim_konk_ya)
+# Significant F = 7.52, p < .001
+model_stim_aro_ya <- aov(ya_aro_mean ~ stimtype_REC, data = smst_stim_list_complex)
+summary(model_stim_aro_ya)
+# Significant F = 17.18, p < .001
+### Significant main effects 
+
+# Checking effect of manipulation
+smst_stim_list_complex %>%
+  filter(stimtype_REC != "FOIL") %>% 
+  pairwise_t_test(
+    ya_konk_mean ~ stimtype_REC, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE VS DISTANT not sig. t = 2.36; p = 0.061
+# CLOSE VS TARG sig.t = -2.80; p = 0.019
+# DISTANT VS TARG sig. t = -4.50; p = < 0.001
+
+
+smst_stim_list_complex %>%
+  filter(stimtype_REC != "FOIL") %>%
+  pairwise_t_test(
+    ya_ert_mean ~ stimtype_REC, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE VS DISTANT sig. t = 3.19; p = < 0.001
+# CLOSE VS TARG sig.t = -5.78; p = < 0.001
+# DISTANT VS TARG sig. t = -7.49; p = < 0.001
+
+smst_stim_list_complex %>%
+  filter(stimtype_REC != "FOIL") %>%
+  pairwise_t_test(
+    ya_aro_mean ~ stimtype_REC, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE VS DISTANT sig. t = 5.96; p = < 0.001
+# CLOSE VS TARG not sig. t = -1.20; p = < 0.6
+# DISTANT VS TARG sig. t = -7.01; p = < 0.001
+
+
+## EFFECT SIZES
+library(effectsize)
+require(pwr)
+
+eta_squared(model_stim_ert_ya, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_stim_konk_ya) # Full summary
+
+eta_squared(model_stim_ert_ya, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_stim_ert_ya) # Full summary
+
+eta_squared(model_stim_ert_ya, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_stim_aro_ya) # Full summary
+
+
+### PLOTS
+smst_stim_list_lures = smst_stim_list %>% 
+  filter(stim_type == "CLOSE" | stim_type == "DISTANT")
+
+smst_stim_list_close = smst_stim_list_lures %>% 
+  filter(stim_type == "CLOSE")
+
+smst_stim_list_distant = smst_stim_list_lures %>% 
+  filter(stim_type == "DISTANT")
+
+cor.test(smst_stim_list_lures$ya_ert_mean, smst_stim_list_lures$cosine_metric, method = c("pearson"))
+# lures cosine metric and interpertability: 0.188 corr; p = 0.0076
+cor.test(smst_stim_list_close$ya_ert_mean, smst_stim_list_close$cosine_metric, method = c("pearson"))
+# close lures cosine metric and interpertability: 0.197 corr; p = 0.04938
+cor.test(smst_stim_list_distant$ya_ert_mean, smst_stim_list_distant$cosine_metric, method = c("pearson"))
+# distant lures cosine metric and interpertability: -0.228 corr; p = 0.02246
+
+ggscatter(smst_stim_list_lures, x = "cosine_metric", y = "ya_ert_mean", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
+ggscatter(smst_stim_list_close, x = "cosine_metric", y = "ya_konk_mean", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
+ggscatter(smst_stim_list_distant, x = "cosine_metric", y = "ya_aro_mean", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
 
 
 ```
 
+### Old Adult scores
+
+```{r}
+
+# Model
+
+model_stim_ert_oa <- aov(oa_ert_mean ~ stimtype_REC, data = smst_stim_list_complex)
+summary(model_stim_ert_oa)
+
+model_stim_konk_oa <- aov(oa_konk_mean ~ stimtype_REC, data = smst_stim_list_complex)
+summary(model_stim_konk_oa)
+
+model_stim_aro_oa <- aov(oa_aro_mean ~ stimtype_REC, data = smst_stim_list_complex)
+summary(model_stim_aro_oa)
+
+### Significant main effects 
+#### No significant interaction
+
+# Checking effect of manipulation
+smst_stim_list_complex %>%
+  filter(stimtype_REC != "FOIL") %>% 
+  pairwise_t_test(
+    oa_konk_mean ~ stimtype_REC, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE VS DISTANT sig. t = 3.61; p = 0.001
+# CLOSE VS TARG not sig. t = 2.21; p = 0.087
+# DISTANT VS TARG not sig. t = -2.15; p = 0.102
+
+smst_stim_list_complex %>%
+  filter(stimtype_REC != "FOIL") %>%
+  pairwise_t_test(
+    oa_ert_mean ~ stimtype_REC, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE VS DISTANT sig. t = 4.66; p < 0.001
+# CLOSE VS TARG sig. t = -3.68; p < 0.001
+# DISTANT VS TARG sig. t = -7.20; p < 0.001
+
+smst_stim_list_complex %>%
+  filter(stimtype_REC != "FOIL") %>%
+  pairwise_t_test(
+    oa_aro_mean ~ stimtype_REC, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE VS DISTANT not sig. t = -0.217; p < 0.1
+# CLOSE VS TARG sig. t = -7.48; p < 0.001
+# DISTANT VS TARG sig. t = -3.34; p < 0.001
+
+library(effectsize)
+require(pwr)
+
+
+eta_squared(model_stim_ert_oa, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_stim_ert_oa) # Full summary
+
+eta_squared(model_stim_konk_oa, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_stim_konk_oa) # Full summary
+## Low power
+
+eta_squared(model_stim_aro_oa, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_stim_aro_oa) # Full summary
+## Low power
+
+
+smst_stim_list_lures = smst_stim_list %>% 
+  filter(stim_type == "CLOSE" | stim_type == "DISTANT")
+
+smst_stim_list_close = smst_stim_list_lures %>% 
+  filter(stim_type == "CLOSE")
+
+smst_stim_list_distant = smst_stim_list_lures %>% 
+  filter(stim_type == "DISTANT")
+
+cor.test(smst_stim_list_lures$oa_ert_mean, smst_stim_list_lures$cosine_metric, method = c("pearson"))
+# lures cosine metric and interpertability: 0.251 corr; p = 0.0003
+cor.test(smst_stim_list_close$oa_ert_mean, smst_stim_list_close$cosine_metric, method = c("pearson"))
+# lures cosine metric and interpertability: 0.115 corr; p = 0.2555
+cor.test(smst_stim_list_distant$oa_ert_mean, smst_stim_list_distant$cosine_metric, method = c("pearson"))
+# lures cosine metric and interpertability: -0.186 corr; p = 0.0112
+
+
+ggscatter(smst_stim_list_lures, x = "cosine_metric", y = "oa_ert_mean", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
+ggscatter(smst_stim_list_close, x = "cosine_metric", y = "oa_konk_mean", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
+ggscatter(smst_stim_list_distant, x = "cosine_metric", y = "oa_aro_mean", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
+
+```
+
+
+## Basic ANOVA models
+
+### Assumption check
+
+```{r}
+semmst_data_final_clean_ANOVA = semmst_data_final_clean %>% 
+  select(ID, AgeGroup, rec_dprime, close_dprime, distant_dprime) %>%  distinct() %>% 
+  gather("type", "dprime", -c(ID,AgeGroup))
+
+
+# No significant outliers
+semmst_data_final_clean_ANOVA %>% 
+  ggplot(aes(y=dprime)) +
+   geom_boxplot() +
+   facet_grid(AgeGroup~type) 
+
+semmst_data_final_clean_ANOVA %>% 
+  group_by(AgeGroup, type) %>% 
+  rstatix::identify_outliers(dprime)
+### No extreme outliers
+# Outiers: 1 OA-close, 1 OA-dist, 3 OA-rec, 4 YA-CLOSE, 1 YA-DIST, 1 YA-targ
+
+
+# Normal distribution of outcome in each cell
+semmst_data_final_clean_ANOVA %>% 
+  ggpubr::ggqqplot(x = "dprime")
+
+semmst_data_final_clean_ANOVA %>%
+  filter(ID != 851046) %>% 
+  ggplot(aes(sample=dprime)) +
+   stat_qq_band() +
+   stat_qq_line() +
+   stat_qq_point() +
+   facet_grid(AgeGroup~type)
+### OA_DISTANT looks wrong: 851046 - ID
+
+semmst_data_final_clean_ANOVA %>%
+  #filter(ID != 851046) %>% 
+  group_by(AgeGroup, type) %>%
+  shapiro_test(dprime)
+### OA distant and YA rec is significant - bc of 851046
+### After removing 851046 only YA_REC is significant - p = 0.0338 - but we decide to not exclude, because it violates homogenity
+    
+# Homogenity - Levene
+semmst_data_final_clean_ANOVA %>%
+  group_by(type)%>% 
+  levene_test(dprime ~ as.factor(AgeGroup))
+#### Not significant with all subjects
+
+# Homogenity of covariance
+box_m(semmst_data_final_clean_ANOVA[, "dprime", drop = FALSE], semmst_data_final_clean_ANOVA$AgeGroup)
+### Not significant - p = 0.0837
+
+
+```
+
+### The model
+
+```{r}
+
+# Model
+
+model_anova <- aov(dprime ~ AgeGroup * type, data = semmst_data_final_clean_ANOVA)
+summary(model_anova)
+
+#semmst_data_final_clean_ANOVA_wo_distant = semmst_data_final_clean_ANOVA %>% 
+#  filter(type != "distant_dprime")
+#model_anova_wo_distant <- aov(dprime ~ AgeGroup * type, data = semmst_data_final_clean_ANOVA_wo_distant)
+#summary(model_anova_wo_distant)
+
+### Significant main effects 
+#### AgeGroup: F = 35.12; p < 0.001
+#### type: F = 27.43; p < 0.001
+#### No significant interaction
+
+# Checking effect of manipulation
+semmst_data_final_clean_ANOVA %>%
+  pairwise_t_test(
+    dprime ~ type, paired = TRUE, 
+    p.adjust.method = "bonferroni"
+  )
+# CLOSE vs DISTANT not sig. t = -13.4; p < 0.001
+# CLOSE vs REC significant t = -11.5; p < 0.001
+# DISTANT vs REC significant t = -0.284; p = 0.691
+
+library(effectsize)
+require(pwr)
+
+eta_squared(model_anova, partial = FALSE) # Eta-squared
+sjstats::anova_stats(model_anova) # Full summary
+## AgeGroup eta2 = 0.11
+## stimtype eta2 = 0.17
+## interaction eta2 = 0.00228
+
+```
+
+
+## Analyses - GLMEM
+
+#### Checking presumptions - MD outliers
+
+```{r}
+# Outliers: Mahalanobis
+ID_to_identify = semmst_data_final_clean %>% 
+  select("ID", "Beck", "Vocabulary", "Digit_symbol", "Non_word_sum", "Non_word_span", "MST_rec_score", "MST_ldi", "PALT_best_performance_trial", "PALT_best_performance_score", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular") %>% 
+  distinct()
+
+
+
+data_structure = semmst_data_final_clean %>% 
+  select("Beck", "Vocabulary", "Digit_symbol", "Non_word_sum", "Non_word_span", "MST_rec_score", "MST_ldi", "PALT_best_performance_trial", "PALT_best_performance_score", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular") %>% 
+  distinct() 
+
+data_structure.center  = colMeans(data_structure)
+data_structure.cov     = cov(data_structure)
+
+# Finding distances
+distances <- mahalanobis(x = data_structure , center = data_structure.center , cov = data_structure.cov)
+
+# Cutoff value for ditances from Chi-Sqaure Dist. 
+# with p = 0.95 df = 2 which in ncol(air)
+cutoff <- qchisq(p = 0.95 , df = ncol(data_structure))
+
+## Display observation whose distance greater than cutoff value
+cut_offs = data_structure[distances > cutoff ,]
+result = merge(cut_offs, ID_to_identify)
+## Returns : 2., 29. observations -> IDs: 006150 - MST check?;  421568 - MST check + ismerte az MST-t, de össze volt zavarodva, hogy "melyiket kérdeztük?"
+## Returns: 24., 33. observations -> IDs: 392539 - Digit Symbol 95 nagyon magas; 449122 - Vocabulary 8 nagyon alacsony
+
+semmst_data_final_clean_GLMEM = semmst_data_final_clean %>% 
+  filter(ID != "006150" & ID != "421568" & ID != "392539" & ID != "449122") %>% 
+  mutate(across(c(ya_aro_mean, ya_ert_mean, adj_freq, noun_freq, oa_aro_mean, oa_ert_mean, adj_phon), .fns = list(log = ~log(.x+1-min(.x))))) %>% 
+  mutate(across(where(is.numeric), .fns = list(scale = scale))) %>% 
+  mutate(AgeGroup = relevel(AgeGroup, "YA")) %>% 
+  mutate(stimtype_REC = relevel(stimtype_REC, "FOIL")) %>% 
+  mutate(response_REC = as.factor(response_REC))
+
+  
+```
+
+
+#### Normality of random effects
+
+```{r}
+
+## Dataframes for plot
+semmst_data_final_clean_plot_OA = semmst_data_final_clean_GLMEM %>% 
+  select("Age" , "Beck_scale", "Vocabulary_scale", "Digit_symbol_scale", "Non_word_sum_scale", "Non_word_span_scale", "MST_rec_score_scale", "MST_ldi_scale", "PALT_best_performance_trial_scale", "PALT_best_performance_score_scale", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular_scale") %>%
+  filter(Age > 50) %>% 
+  distinct() %>%
+  gather(questionnaire, result) %>% 
+  mutate(result = as.numeric(result))
+
+semmst_data_final_clean_plot_YA = semmst_data_final_clean_GLMEM %>% 
+  select("Age" , "Beck_scale", "Vocabulary_scale", "Digit_symbol_scale", "Non_word_sum_scale", "Non_word_span_scale", "MST_rec_score_scale", "MST_ldi_scale", "PALT_best_performance_trial_scale", "PALT_best_performance_score_scale", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular_scale") %>% 
+  filter(Age < 50) %>% 
+  distinct() %>% 
+  mutate_if(is.numeric, list(scale)) %>% 
+  gather(questionnaire, result) %>% 
+  mutate(result = as.numeric(result))
+
+semmst_data_final_clean_plot_word = semmst_data_final_clean_GLMEM %>% 
+  select("noun_freq_log_scale", "noun_char_scale", "noun_phon_scale", "adj_freq_log_scale", "adj_char_scale", "adj_phon_log_scale", "ya_ert_mean_log_scale", "ya_konk_mean_scale", "ya_aro_mean_log_scale", "oa_ert_mean_log_scale", "oa_konk_mean_scale", "oa_aro_mean_log_scale") %>% 
+  distinct() %>%
+  gather(questionnaire, result) %>% 
+  mutate(result = as.numeric(result))
+
+## HISTOGRAMS
+semmst_data_final_clean_plot_OA %>%
+  na.omit() %>% 
+  ggplot(aes(x = as.numeric(result))) +
+    geom_histogram(bins = 5) + 
+    facet_wrap(~questionnaire, scales = 'free_x')
+# Non-normal: alcohol_regular?, Beck?, caffeine_regular, PALT_best_trial, Vocabulary?
+
+semmst_data_final_clean_plot_YA %>% 
+  na.omit() %>% 
+  ggplot(aes(as.numeric(result))) +
+    geom_histogram(bins = 5) + 
+    facet_wrap(~questionnaire, scales = 'free_x')
+# Non-normal: Age, Beck, caffeine_regular, Non_word_span, PALT_trial, 
+
+semmst_data_final_clean_plot_word %>% 
+  ggplot(aes(result)) +
+    geom_histogram(bins = 5) + 
+    facet_wrap(~questionnaire, scales = 'free_x')
+#Non-normal: ya_aro, ya_ert, oa_ert, oa_aro, adj_freq
+
+
+## NORMALITY OF RESIDUALS
+
+semmst_data_final_clean_plot_OA %>% 
+  ggplot(aes(sample=as.numeric(result))) +
+    stat_qq_band() +
+    stat_qq_line() +
+    stat_qq_point() +
+    facet_wrap(~questionnaire, scales = 'free')
+# Non-normal: caffeine_regular, PALT_best_performance_trial
+
+semmst_data_final_clean_plot_YA %>% 
+  ggplot(aes(sample=as.numeric(result))) +
+    stat_qq_band() +
+    stat_qq_line() +
+    stat_qq_point() +
+    facet_wrap(~questionnaire, scales = 'free')
+# Non-normal: caffeine_regular, PALT_best_performance_score, PALT_best_trial
+
+semmst_data_final_clean_plot_word %>% 
+  ggplot(aes(sample=result)) +
+    stat_qq_band() +
+    stat_qq_line() +
+    stat_qq_point() +
+    facet_wrap(~questionnaire, scales = 'free')
+#Non-normal: ya_ert, adj_freq, oa_ert, adj_phon, noun_phon
+
+
+# Normality test?
+semmst_data_final_clean_plot_OA %>%
+  drop_na() %>% 
+  group_by(questionnaire) %>%
+  shapiro_test(result)
+
+semmst_data_final_clean_plot_YA %>%
+  drop_na() %>% 
+  group_by(questionnaire) %>%
+  shapiro_test(result)
+
+semmst_data_final_clean_plot_word %>%
+  drop_na() %>% 
+  group_by(questionnaire) %>%
+  shapiro_test(result)
+
+```
+
+
+#### MODELS based on Naspi (2022) - Base models (most complex) - OA & YA + all stim types
+
+Simple model - no covariates
+
+```{r}
+library(lme4)
+library('ggeffects')
+library(optimx)
+library(afex)
+library(dfoptim)
+library(broom)
+library(broom.mixed)
+library(performance)
+```
+
+###### Simple model with only two fixed effects in interaction
+
+```{r}
+model_simple = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+```
+
+Model analysis and plot
+
+```{r}
+# OR
+broom.mixed::tidy(model_simple, conf.int = TRUE, exponentiate = TRUE)
+
+# In this plot, we will only include sex and ticket price as predictors.
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
+  ggplot() +
+    aes(y = response_REC, x = stimtype_REC, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Similarity conditions")
+
+# Evaluating model
+r2(model_simple)
+
+summary(model_simple)
+
+```
+
+
+###### Complex models
+
+```{r}
+
+
+## Simple models no interaction - to check collinearity
+model_simple_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        Beck_scale +
+                                        Vocabulary_scale +
+                                        Digit_symbol_scale +
+                                        Non_word_sum_scale +
+                                        MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        alcohol_regular +
+                                        sleep_regular +
+                                        exercise_regular +
+                                        sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+
+model_simple_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        oa_konk_mean_scale +
+                                        ya_konk_mean_scale +
+                                        ya_aro_mean_log_scale +
+                                        oa_aro_mean_log_scale +
+                                        noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+check_collinearity(model_simple_participants_cognitive)
+check_collinearity(model_simple_participants_health) # High correlation: sedentary
+check_collinearity(model_simple_items)
+
+## Most complex models with all predictors
+model_complex_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+# Model converging
+
+model_complex_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * alcohol_regular +
+                                        stimtype_REC * AgeGroup * sleep_regular +
+                                        stimtype_REC * AgeGroup * exercise_regular +
+                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+# Model not converging - ordinal values
+## Data should be used as random effects
+
+model_complex_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * oa_konk_mean_scale +
+                                        stimtype_REC * AgeGroup * ya_konk_mean_scale +
+                                        stimtype_REC * AgeGroup * ya_aro_mean_log_scale +
+                                        stimtype_REC * AgeGroup * oa_aro_mean_log_scale +
+                                        stimtype_REC * AgeGroup * noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+# Model converging
+
+
+
+```
+
+Model evaluations
+
+```{r}
+# Basic summary
+summary(model_simple)
+
+summary(model_complex_participants_cognitive)
+summary(model_complex_participants_health)
+summary(model_complex_items)
+
+# Pseudo-r2
+r2(model_simple)
+augment(model_simple, type.predict = "response")
+plot(performance_roc(model_simple))
+tab_model(model_simple,
+              show.aic = TRUE,
+              show.loglik = TRUE,
+              collapse.se = TRUE)
+    
+
+```
+
+Complex models - random effects
+
+```{r}
+
+model_complex_participants_cognitive_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        AgeGroup:Beck_scale +
+                                        AgeGroup:Vocabulary_scale +
+                                        AgeGroup:Digit_symbol_scale +
+                                        AgeGroup:Non_word_sum_scale +
+                                        AgeGroup:MST_ldi_scale +
+                                        AgeGroup:exercise_regular +
+                                        AgeGroup:sleep_regular +
+                                        stimtype_REC*AgeGroup:oa_konk_mean_scale +
+                                        stimtype_REC*AgeGroup:ya_konk_mean_scale +  
+                                        stimtype_REC*AgeGroup:oa_aro_mean_log_scale +
+                                        stimtype_REC*AgeGroup:ya_aro_mean_log_scale +
+                                        stimtype_REC:noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='bobyqa', optCtrl=list(maxfun = 20000)), nAGQ=0)
+
+summary(model_complex_participants_cognitive_health)
+broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE) %>%  print(n = 70)
+r2(model_complex_participants_cognitive_health)
+### AIC = 9022.9; R2 = 0.475
+#### Significant main effects of cond
+### TARG: estimate = 8.96, p < .001
+### CLOSE: estimate = 1.92, p < .001
+### DISTANT: estimate = 1.17, p = .096
+#### N.s. AgeGroup effect
+### Age: estimate = 1.44, p = .42
+#### Significant interactions
+### TARG * Age: estimate = .53, p < .001
+### DISTANT * Age: estimate = .78, p = .05
+#### N.s. interaction
+### CLOSE * Age: estimate = 1.01, p = .91
+#### Covariates
+### AgeYA * Digit_Symbol: estimate = 0.83, p = .03
+### AgeOA * Non_word_sum_scale: estimate = 1.15, p = .02
+### AgeYA * MST_ldi: estimate = 0.88, p = 0.05
+### FOIL * noun_freq: estimate = 1.08, p = .02
+### TARG * noun_freq: estimate = 0.93, p = .01
+### CLOSE * AgeYA * oa_konk: estimate = 0.81, p = .04
+### CLOSE * AgeYA * ya_konk: estimate = 1.47, p < .001
+### DISTANT * AgeYA * ya_konk:estimate = 1.31, p < .01
+### CLOSE * AgeOA * ya_konk: estimate = 1.20, p = .04
+
+model_optimal_participants_cognitive_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1 + exercise_regular + alcohol_regular + sleep_regular|ID) + 
+                                        (1 + |itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_optimal_participants_cognitive_health_word = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1 + exercise_regular + alcohol_regular + sleep_regular|ID) + 
+                                        (1 + oa_konk_mean_scale + ya_konk_mean_scale + oa_aro_mean_log_scale + ya_aro_mean_log_scale + noun_freq_log_scale|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+
+```
+
+Model analysis
+
+```{r}
+# Summary stats
+summary(model_complex_participants_cognitive_health)
+
+# OR
+broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE)
+
+# In this plot, we will only include sex and ticket price as predictors.
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
+  ggplot() +
+    aes(y = response_REC, x = stimtype_REC, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Similarity conditions")
+
+# Evaluating model
+r2(model_complex_participants_cognitive_health)
+
+
+```
+
+
+###### Model variations
+
+###### Cognitive
+
+```{r}
+
+model_complex_participants_cognitive_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_D = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_E = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+#Winner model: B, AIC = 9011.3
+
+```
+
+Further subtracting
+
+```{r}
+
+model_complex_participants_cognitive_B_inverse = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B_D = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+#Winner model: B_A, AIC = 9010.4
+
+```
+
+```{r}
+
+summary(model_complex_participants_cognitive_B_inverse)
+summary(model_complex_participants_cognitive_B_A)
+summary(model_complex_participants_cognitive_B_B)
+summary(model_complex_participants_cognitive_B_C)
+summary(model_complex_participants_cognitive_B_D)
+
+```
+
+Even further
+
+```{r}
+
+model_complex_participants_cognitive_B_A_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B_A_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_cognitive_B_A_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * Beck_scale +
+                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+summary(model_complex_participants_cognitive_B_A_A)
+summary(model_complex_participants_cognitive_B_A_B)
+summary(model_complex_participants_cognitive_B_A_C)
+
+# All models worse
+
+```
+
+Winner model
+
+```{r}
+
+model_complex_participants_cognitive_optimal = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+```
+
+
+```{r}
+# OR
+broom.mixed::tidy(model_complex_participants_cognitive_optimal, conf.int = TRUE, exponentiate = TRUE)
+
+# In this plot, we will only include sex and ticket price as predictors.
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
+  ggplot() +
+    aes(y = response_REC, x = stimtype_REC, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Similarity conditions")
+
+# Evaluating model
+r2(model_complex_participants_cognitive_optimal)
+
+```
+
+###### Health
+
+```{r}
+
+model_complex_participants_health_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * alcohol_regular +
+                                        stimtype_REC * AgeGroup * sleep_regular +
+                                        stimtype_REC * AgeGroup * exercise_regular +
+                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_health_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * alcohol_regular +
+                                        #stimtype_REC * AgeGroup * sleep_regular +
+                                        stimtype_REC * AgeGroup * exercise_regular +
+                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_complex_participants_health_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * alcohol_regular +
+                                        stimtype_REC * AgeGroup * sleep_regular +
+                                        #stimtype_REC * AgeGroup * exercise_regular +
+                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+summary(model_complex_participants_health_A)
+summary(model_complex_participants_health_B)
+summary(model_complex_participants_health_C)
+
+
+```
+
+
+###### Word
+
+```{r}
+
+model_complex_participants_word_A = clmm(rating ~ temp + contact + (1|judge), data = wine) 
+
+glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        #stimtype_REC * AgeGroup * alcohol_regular +
+                                        stimtype_REC * AgeGroup * sleep_regular +
+                                        stimtype_REC * AgeGroup * exercise_regular +
+                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+
+```
+
+###### Continous model
+
+```{r}
+
+semmst_data_final_clean_GLMEM_cont_dist = semmst_data_final_clean_GLMEM %>% 
+  filter(stimtype_REC != "TARG") %>% 
+  filter(stimtype_REC != "FOIL") %>% 
+  filter(stimtype_REC != "CLOSE")
+
+semmst_data_final_clean_GLMEM_cont_close = semmst_data_final_clean_GLMEM %>% 
+  filter(stimtype_REC != "TARG") %>% 
+  filter(stimtype_REC != "FOIL") %>% 
+  filter(stimtype_REC != "DISTANT") %>% 
+  filter(cosine_metric < .89)
+
+semmst_data_final_clean_GLMEM_cont_lures = semmst_data_final_clean_GLMEM %>% 
+  #filter(stimtype_REC != "TARG") %>% 
+  filter(stimtype_REC != "FOIL") 
+
+  
+  
+model_simple_cont_only_distant = glmer(response_REC ~ AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM_cont_dist,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_cont_only_close = glmer(response_REC ~ AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM_cont_close,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_cont_only_lures = glmer(response_REC ~ AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM_cont_lures,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+
+
+model_complex_cont_only = glmer(response_REC ~ cosine_metric * AgeGroup +
+                                        AgeGroup:Beck_scale +
+                                        AgeGroup:Vocabulary_scale +
+                                        AgeGroup:Digit_symbol_scale +
+                                        AgeGroup:Non_word_sum_scale +
+                                        AgeGroup:MST_ldi_scale +
+                                        AgeGroup:exercise_regular +
+                                        AgeGroup:sleep_regular +
+                                        cosine_metric*AgeGroup:oa_konk_mean_scale +
+                                        cosine_metric*AgeGroup:ya_konk_mean_scale +  
+                                        cosine_metric*AgeGroup:oa_aro_mean_log_scale +
+                                        cosine_metric*AgeGroup:ya_aro_mean_log_scale +
+                                        cosine_metric:noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='bobyqa', optCtrl=list(maxfun = 20000)), nAGQ=0)
+
+model_simple_cont_all = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_cont_nofoil = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = filter(semmst_data_final_clean_GLMEM, stimtype_REC != "FOIL"),
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+```
+
+```{r}
+
+summary(model_simple_cont_only_lures)
+summary(model_simple_cont_only_close)
+summary(model_simple_cont_only_distant)
+
+# OR
+broom.mixed::tidy(model_simple_cont_only_lures, conf.int = TRUE, exponentiate = TRUE)
+broom.mixed::tidy(model_simple_cont_only_close, conf.int = TRUE, exponentiate = TRUE)
+broom.mixed::tidy(model_simple_cont_only_distant, conf.int = TRUE, exponentiate = TRUE)
+
+r2(model_simple_cont_only_lures)
+r2(model_simple_cont_only_close)
+r2(model_simple_cont_only_distant)
+
+
+# In this plot, we will only include sex and ticket price as predictors.
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "old", 1, 0)) %>%
+  filter(stimtype_REC != "FOIL") %>% 
+  ggplot() +
+    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1), xlim = c(0.4,1)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Continous GLMEM model plotted", y = "Percentage of 'old' responses", x = "Cosine Similarity")
+
+# Evaluating model
+r2(model_complex_participants_cognitive_optimal)
+
+```
+
+```{r}
+
+summary(model_complex_cont_only)
+
+# OR
+broom.mixed::tidy(model_complex_cont_only, conf.int = TRUE, exponentiate = TRUE)
+
+# In this plot, we will only include sex and ticket price as predictors.
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
+  filter(stimtype_REC != "FOIL") %>% 
+  ggplot() +
+    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1), xlim = c(1,0.4)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Cosine Similarity")
+
+# Evaluating model
+r2(model_complex_cont_only)
+
+```
+
+
+## Further Analysis (2023 february)
+
+### ANOVA with D'a (Loiotile, 2015) - NOT USING
+
+```{r}
+
+# z(H) = z(F) + d'
+## z(F) = z(P("old"|lure))
+## z(F) = z(P("new"|lure))
+## d' = z(H) - z(F)
+
+# Plot the zROC curves
+# Load the pROC and stats libraries
+library(pROC)
+library(stats)
+
+# Generate sample data for classification
+zROC_table = semmst_data_final_clean %>% select(ID, response_REC, stimtype_REC, AgeGroup)
+zROC_table_long = zROC_table %>% 
+  filter(stimtype_REC != "FOIL") %>% 
+  mutate(response_REC = as.numeric(response_REC == "new")) %>% 
+  spread(stimtype_REC, response_REC, -c(ID,AgeGroup))
+zROC_list <- split(zROC_table, zROC_table$stimtype_REC)
+
+# Calculate the ROC curve
+roc_obj <- roc(true_labels, predicted_probs)
+
+# Calculate the z-ROC curve
+fpr <- 1 - specificity(roc_obj)
+tpr <- sensitivity(roc_obj)
+z_fpr <- qnorm(fpr)
+z_tpr <- qnorm(tpr)
+
+# Plot the z-ROC curve
+plot(z_fpr, z_tpr, type = "l")
+abline(0, 1, col = "red")
+
+```
+
+### Word control - median splits
+
+Base
+
+```{r}
+word_control_base = semmst_data_final_clean %>% 
+  select(ID, AgeGroup, stimtype_REC, response_REC, reaction_time_REC, ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean) %>% 
+  mutate(across(c(ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean), 
+                ~ case_when(. >= median(.) ~ "upper",
+                             . < median(.) ~ "lower")))
+
+word_control_ID = word_control_base %>% 
+  select(ID, AgeGroup) %>%  distinct()
+
+```
+
+Young adults
+
+```{r}
+word_control_ya = word_control_base %>%
+  filter(reaction_time_REC <= 3) %>% 
+  count(ID, AgeGroup, stimtype_REC, response_REC, ya_ert_mean) %>% 
+  unite("stim_resp", c("stimtype_REC", "response_REC", "ya_ert_mean"), sep = "_") %>% 
+  spread(stim_resp, n) %>% 
+  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
+  mutate(targ_n_upper = TARG_new_upper + TARG_old_upper) %>% 
+  mutate(close_n_upper = CLOSE_new_upper + CLOSE_old_upper) %>% 
+  mutate(distant_n_upper = DISTANT_new_upper + DISTANT_old_upper) %>% 
+  mutate(foil_n_upper = FOIL_new_upper + FOIL_old_upper) %>% 
+  mutate(targ_n_lower = TARG_new_lower + TARG_old_lower) %>% 
+  mutate(close_n_lower = CLOSE_new_lower + CLOSE_old_lower) %>% 
+  mutate(distant_n_lower = DISTANT_new_lower + DISTANT_old_lower) %>% 
+  mutate(foil_n_lower = FOIL_new_lower + FOIL_old_lower)
+
+
+
+### UPPER
+# Simple recognition - TARG vs FOIL  
+rec_dprime_upper <- psycho::dprime(
+  n_hit = word_control_ya$TARG_old_upper,
+  n_fa = word_control_ya$FOIL_old_upper,
+  n_miss = word_control_ya$TARG_new_upper,
+  n_cr = word_control_ya$FOIL_new_upper,
+  n_targets = word_control_ya$targ_n_upper,
+  n_distractors = word_control_ya$foil_n_upper,
+  adjusted = TRUE
+)
+
+# Close lure discrimination - TARG vs CLOSE  
+close_dprime_upper <- psycho::dprime(
+  n_hit = word_control_ya$TARG_old_upper,
+  n_fa = word_control_ya$CLOSE_old_upper,
+  n_miss = word_control_ya$TARG_new_upper,
+  n_cr = word_control_ya$CLOSE_new_upper,
+  n_targets = word_control_ya$targ_n_upper,
+  n_distractors = word_control_ya$close_n_upper,
+  adjusted = TRUE
+)
+
+# Distant lure discrimination - TARG vs DISTANT  
+dist_dprime_upper <- psycho::dprime(
+  n_hit = word_control_ya$TARG_old_upper,
+  n_fa = word_control_ya$DISTANT_old_upper,
+  n_miss = word_control_ya$TARG_new_upper,
+  n_cr = word_control_ya$DISTANT_new_upper,
+  n_targets = word_control_ya$targ_n_upper,
+  n_distractors = word_control_ya$distant_n_upper,
+  adjusted = TRUE
+)
+### LOWER
+# Simple recognition - TARG vs FOIL  
+rec_dprime_lower <- psycho::dprime(
+  n_hit = word_control_ya$TARG_old_lower,
+  n_fa = word_control_ya$FOIL_old_lower,
+  n_miss = word_control_ya$TARG_new_lower,
+  n_cr = word_control_ya$FOIL_new_lower,
+  n_targets = word_control_ya$targ_n_lower,
+  n_distractors = word_control_ya$foil_n_lower,
+  adjusted = TRUE
+)
+
+# Close lure discrimination - TARG vs CLOSE  
+close_dprime_lower <- psycho::dprime(
+  n_hit = word_control_ya$TARG_old_lower,
+  n_fa = word_control_ya$CLOSE_old_lower,
+  n_miss = word_control_ya$TARG_new_lower,
+  n_cr = word_control_ya$CLOSE_new_lower,
+  n_targets = word_control_ya$targ_n_lower,
+  n_distractors = word_control_ya$close_n_lower,
+  adjusted = TRUE
+)
+
+# Distant lure discrimination - TARG vs DISTANT  
+dist_dprime_lower <- psycho::dprime(
+  n_hit = word_control_ya$TARG_old_lower,
+  n_fa = word_control_ya$DISTANT_old_lower,
+  n_miss = word_control_ya$TARG_new_lower,
+  n_cr = word_control_ya$DISTANT_new_lower,
+  n_targets = word_control_ya$targ_n_lower,
+  n_distractors = word_control_ya$distant_n_lower,
+  adjusted = TRUE
+)
+
+# Dprime dataframe - longformat
+dprimes_table_wide_ert_ya <- data.frame(word_control_ID$ID, word_control_ID$AgeGroup, rec_dprime_upper$dprime, close_dprime_upper$dprime, dist_dprime_upper$dprime, rec_dprime_lower$dprime, close_dprime_lower$dprime, dist_dprime_lower$dprime) %>% 
+  as_tibble() %>%
+  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime_upper", "close_dprime_upper", "distant_dprime_upper", "rec_dprime_lower", "close_dprime_lower", "distant_dprime_lower"))
+  
+dprimes_table_ert_ya = dprimes_table_wide_ert_ya %>% 
+  gather("type", "dprime", -c(ID,AgeGroup)) %>% 
+  mutate(type = str_replace(type, pattern = "_dprime_", replacement = "_")) %>% 
+  separate(type, c("stimtype", "erttype"))
+  
+model_anova_ya_ert <- aov(dprime ~ AgeGroup * stimtype * erttype, data = dprimes_table_ert_ya)
+summary(model_anova_ya_ert)
+# AgeGroup significant: F = 52.877; p < 0.001 
+# stimtype significant: F = 35.598; p < 0.001
+# errtype not significant: F = 0.726; p = 0.394
+# AgeGroup:erttype significant: F = 8.124  p = 0.00456 
+
+library(jtools)
+library(interactions)
+model_anova_ya_ert %>% 
+  ggplot(aes(erttype, dprime)) +
+  geom_line(size = 1.2, aes(group = AgeGroup, color = AgeGroup)) +
+  geom_point(size = 2.6, aes(color = AgeGroup), shape = 15)
+
+```
+
+Old adults
+
+```{r}
+
+word_control_oa = word_control_base %>%
+  filter(reaction_time_REC <= 3) %>% 
+  count(ID, AgeGroup, stimtype_REC, response_REC, oa_ert_mean) %>% 
+  unite("stim_resp", c("stimtype_REC", "response_REC", "oa_ert_mean"), sep = "_") %>% 
+  spread(stim_resp, n) %>% 
+  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
+  mutate(targ_n_upper = TARG_new_upper + TARG_old_upper) %>% 
+  mutate(close_n_upper = CLOSE_new_upper + CLOSE_old_upper) %>% 
+  mutate(distant_n_upper = DISTANT_new_upper + DISTANT_old_upper) %>% 
+  mutate(foil_n_upper = FOIL_new_upper + FOIL_old_upper) %>% 
+  mutate(targ_n_lower = TARG_new_lower + TARG_old_lower) %>% 
+  mutate(close_n_lower = CLOSE_new_lower + CLOSE_old_lower) %>% 
+  mutate(distant_n_lower = DISTANT_new_lower + DISTANT_old_lower) %>% 
+  mutate(foil_n_lower = FOIL_new_lower + FOIL_old_lower)
+
+
+
+### UPPER
+# Simple recognition - TARG vs FOIL  
+rec_dprime_upper <- psycho::dprime(
+  n_hit = word_control_oa$TARG_old_upper,
+  n_fa = word_control_oa$FOIL_old_upper,
+  n_miss = word_control_oa$TARG_new_upper,
+  n_cr = word_control_oa$FOIL_new_upper,
+  n_targets = word_control_oa$targ_n_upper,
+  n_distractors = word_control_oa$foil_n_upper,
+  adjusted = TRUE
+)
+
+# Close lure discrimination - TARG vs CLOSE  
+close_dprime_upper <- psycho::dprime(
+  n_hit = word_control_oa$TARG_old_upper,
+  n_fa = word_control_oa$CLOSE_old_upper,
+  n_miss = word_control_oa$TARG_new_upper,
+  n_cr = word_control_oa$CLOSE_new_upper,
+  n_targets = word_control_oa$targ_n_upper,
+  n_distractors = word_control_oa$close_n_upper,
+  adjusted = TRUE
+)
+
+# Distant lure discrimination - TARG vs DISTANT  
+dist_dprime_upper <- psycho::dprime(
+  n_hit = word_control_oa$TARG_old_upper,
+  n_fa = word_control_oa$DISTANT_old_upper,
+  n_miss = word_control_oa$TARG_new_upper,
+  n_cr = word_control_oa$DISTANT_new_upper,
+  n_targets = word_control_oa$targ_n_upper,
+  n_distractors = word_control_oa$distant_n_upper,
+  adjusted = TRUE
+)
+### LOWER
+# Simple recognition - TARG vs FOIL  
+rec_dprime_lower <- psycho::dprime(
+  n_hit = word_control_oa$TARG_old_lower,
+  n_fa = word_control_oa$FOIL_old_lower,
+  n_miss = word_control_oa$TARG_new_lower,
+  n_cr = word_control_oa$FOIL_new_lower,
+  n_targets = word_control_oa$targ_n_lower,
+  n_distractors = word_control_oa$foil_n_lower,
+  adjusted = TRUE
+)
+
+# Close lure discrimination - TARG vs CLOSE  
+close_dprime_lower <- psycho::dprime(
+  n_hit = word_control_oa$TARG_old_lower,
+  n_fa = word_control_oa$CLOSE_old_lower,
+  n_miss = word_control_oa$TARG_new_lower,
+  n_cr = word_control_oa$CLOSE_new_lower,
+  n_targets = word_control_oa$targ_n_lower,
+  n_distractors = word_control_oa$close_n_lower,
+  adjusted = TRUE
+)
+
+# Distant lure discrimination - TARG vs DISTANT  
+dist_dprime_lower <- psycho::dprime(
+  n_hit = word_control_oa$TARG_old_lower,
+  n_fa = word_control_oa$DISTANT_old_lower,
+  n_miss = word_control_oa$TARG_new_lower,
+  n_cr = word_control_oa$DISTANT_new_lower,
+  n_targets = word_control_oa$targ_n_lower,
+  n_distractors = word_control_oa$distant_n_lower,
+  adjusted = TRUE
+)
+
+# Dprime dataframe - longformat
+dprimes_table_wide_ert_oa <- data.frame(word_control_ID$ID, word_control_ID$AgeGroup, rec_dprime_upper$dprime, close_dprime_upper$dprime, dist_dprime_upper$dprime, rec_dprime_lower$dprime, close_dprime_lower$dprime, dist_dprime_lower$dprime) %>% 
+  as_tibble() %>%
+  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime_upper", "close_dprime_upper", "distant_dprime_upper", "rec_dprime_lower", "close_dprime_lower", "distant_dprime_lower"))
+  
+dprimes_table_ert_oa = dprimes_table_wide_ert_oa %>% 
+  gather("type", "dprime", -c(ID,AgeGroup)) %>% 
+  mutate(type = str_replace(type, pattern = "_dprime_", replacement = "_")) %>% 
+  separate(type, c("stimtype", "erttype"))
+  
+model_anova_oa_ert <- aov(dprime ~ AgeGroup * stimtype * erttype, data = dprimes_table_ert_oa)
+summary(model_anova_oa_ert)
+# AgeGroup significant: F = 56.480; p < 0.001 
+# stimtype significant: F = 33.18; p < 0.001
+# errtype not significant: F = 3.731; p = 0.054
+# AgeGroup:erttype not significant: F = 3.206  p = 0.074
+
+model_anova_oa_ert %>% 
+  ggplot(aes(erttype, dprime)) +
+  geom_line(size = 1.2, aes(group = AgeGroup, color = AgeGroup)) +
+  geom_point(size = 2.6, aes(color = AgeGroup), shape = 15)
+
+```
+
+
+
+### Correlations with cognitive controls
+
+MST - sMST correlation
+
+```{r}
+
+# MST - smst LDI correlation
+cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$close_dprime)
+cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$distant_dprime)
+cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$lure_dprime)
+
+# MST - smst REC dprime
+cor.test(semmst_data_final_clean$MST_rec_score, semmst_data_final_clean$rec_dprime)
+
+semmst_data_final_clean %>% 
+  filter(MST_rec_score > 0.4) %>%
+  ggplot(mapping = aes(x = MST_rec_score, y = rec_dprime, fill = AgeGroup, colour = AgeGroup)) +
+    geom_point(shape = 21, color = 'white', size = 4) +
+    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
+    sm_statCorr(fit.params = list(color = 'black',
+                                   linetype = 'dashed'), text_size = 10) +
+    custom_theme +
+    labs(x = "Recognition score in MST", y = "D-prime scores of targ. vs. foils - discriminability", title = "Correlation of dprimes in our main task\nand the recognition scores in the original MST") +
+    theme(legend.position = "right") + guides(colour = FALSE)
+
+# MST - smst CLOSE dprime
+semmst_data_final_clean %>% 
+  #filter(MST_rec_score > 0.4) %>%
+  ggplot(mapping = aes(x = MST_ldi, y = close_dprime, fill = AgeGroup, colour = AgeGroup)) +
+    geom_point(shape = 21, color = 'white', size = 4) +
+    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
+    sm_statCorr(fit.params = list(color = 'black',
+                                   linetype = 'dashed'), text_size = 10) +
+    custom_theme +
+    labs(x = "Recognition score in MST", y = "D-prime scores of targ. vs. close lures - discriminability", title = "Correlation of dprimes in our main task\nand the LDI scores in the original MST") +
+    theme(legend.position = "right") + guides(colour = FALSE)
+
+# MST - smst DISTANT dprime
+semmst_data_final_clean %>% 
+  #filter(MST_rec_score > 0.4) %>%
+  ggplot(mapping = aes(x = MST_ldi, y = distant_dprime, fill = AgeGroup, colour = AgeGroup)) +
+    geom_point(shape = 21, color = 'white', size = 4) +
+    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
+    sm_statCorr(fit.params = list(color = 'black',
+                                   linetype = 'dashed'), text_size = 10) +
+    custom_theme +
+    labs(x = "Recognition score in MST", y = "D-prime scores of targ. vs. distant lures - discriminability", title = "Correlation of dprimes in our main task\nand the LDI scores in the original MST") +
+    theme(legend.position = "right") + guides(colour = FALSE)
+
+# MST - LURE vs REC
+semmst_data_final %>% 
+  #filter(MST_rec_score > 0.4) %>%
+  ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
+    geom_point(shape = 21, color = 'white', size = 4) +
+    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
+    sm_statCorr(fit.params = list(color = 'black',
+                                   linetype = 'dashed'), text_size = 10) +
+    custom_theme +
+    labs(x = "Lure Discrimination Index in MST", y = "D-prime scores of targ. vs. all lures - discriminability", title = "Correlation of dprimes in the sMST\nand the LDI scores in the original MST") +
+    theme(legend.position = "none") + guides(colour = FALSE)
+```
+
+Correlation matrices of covariates
+
+```{r}
+### Correlation matrices
+#### COGNITIVE
+semmst_data_final_clean %>% 
+  select(c(ID, AgeGroup, rec_dprime, MST_ldi, Beck, Vocabulary, Digit_symbol, Non_word_span)) %>% 
+  unique() %>%
+  grouped_ggcorrmat(
+    type         = "robust",
+    colors       = c("#cbac43", "white", "#550000"),
+    grouping.var = AgeGroup,
+    matrix.type  = "lower"
+  )
+#### HEALTH
+semmst_data_final_clean %>% 
+  select(c(ID, AgeGroup, rec_dprime, sedentary_regular, exercise_regular, sleep_regular, caffeine_regular, alcohol_regular)) %>% 
+  unique() %>%
+  mutate(across(exercise_regular:alcohol_regular, as.numeric)) %>% 
+  grouped_ggcorrmat(
+    type         = "robust",
+    colors       = c("#cbac43", "white", "#550000"),
+    grouping.var = AgeGroup,
+    matrix.type  = "lower"
+  )
+
+### WORD
+semmst_data_final_clean %>% 
+  select(c(stimtype_REC, adjective_REC, noun, ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean, noun_freq, adj_freq)) %>%
+  distinct() %>%
+  mutate(across(ya_ert_mean:adj_freq, as.numeric)) %>% 
+  ggcorrmat(
+    type         = "robust",
+    colors       = c("#cbac43", "white", "#550000"),
+    #grouping.var = stimtype_REC,
+    matrix.type  = "lower"
+  )
+
+```
+
+### Encoding data ANOVA
+
+```{r}
+# accuracy based on enc responses
+accuracy_table_enc_resp = semmst_data_final_clean %>% 
+  filter(response_ENC == "good" | response_ENC == "no-good") %>%
+  group_by(AgeGroup, ID, response_ENC, stimtype_REC, correctness) %>%
+  summarise(cnt = n()) %>% 
+  mutate(percent_correct=cnt/sum(cnt)) %>% 
+  filter(correctness == 1) %>% 
+  arrange(desc(percent_correct))
+
+# T-test and mean(SD)
+t.test(percent_correct ~ response_ENC, data = accuracy_table_enc_resp)
+
+accuracy_table_enc_resp %>% group_by(response_ENC) %>% 
+  summarise(resp_rate = mean(percent_correct), resp_sd = sd(percent_correct))
+
+# ANOVA
+accuracy_table_enc_resp %>%
+  group_by(stimtype_REC)%>% 
+  levene_test(percent_correct ~ as.factor(AgeGroup))
+
+model_anova_accenc <- aov(percent_correct ~  response_ENC * AgeGroup, data = accuracy_table_enc_resp)
+
+summary(model_anova_accenc)
+
+```
+
+
+# Plots
 
 ## ENCODING PHASE
 
@@ -461,6 +2118,7 @@ semmst_data_enc %>%
   mutate(percentage = n/sum(n)) %>% 
   ggplot(aes(x=response, y=percentage)) + 
     geom_bar(aes(fill = AgeGroup),position=position_dodge(), stat="summary") +
+    geom_point(aes(fill = AgeGroup),position=position_jitterdodge()) +
     custom_theme + 
     labs(x = "Response made", y = "Percentage of responses", title = "Good or not-good responses on ENC phase ", fill = "Age group") +
     scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
@@ -527,11 +2185,15 @@ semmst_data_rec %>%
     #geom_errorbar(aes(ymin=percentage-sd, ymax=percentage+sd), width=.3,
                  #position=position_dodge(.9), size=0.86) +
     geom_point(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None"))), position = position_jitterdodge(dodge.width=1)) +
-    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Percentage of responses given for different stimulus conditions in the Recognition phase of the sMST task", fill = "Type of response") +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Percentage of responses given for different\n stimulus conditions in the Recognition phase of the SMST task", fill = "Type of response") +
     scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
-    theme(text = element_text(size = 17)) +
+    custom_theme +
     facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
-    scale_fill_brewer(palette = "Dark2")
+    scale_fill_brewer(palette = "Dark2") +
+    scale_x_discrete(labels=c("TARG" = "TARGET", 
+                              "CLOSE" = "CLOSE\nLURE",
+                              "DISTANT" = "DISTANT\nLURE",
+                              "FOIL" = "FOIL"))
 
 
 ```
@@ -920,7 +2582,7 @@ Covariate ID
 ```{r}
 
 semmst_data_final_clean %>%
-  select(ID, AgeGroup, Sex, Age, Beck, Vocabulary, Digit_symbol, Non_word_span, Non_word_sum, Moca, MST_rec_score, MST_ldi, PALT_best_performance_trial, PALT_best_performance_score, exercise_regular, alcohol_regular, caffeine_regular) %>% 
+  select(ID, AgeGroup, Sex, Age, Beck, Vocabulary, Digit_symbol, Non_word_span, Non_word_sum, Moca, MST_rec_score, MST_ldi, exercise_regular, alcohol_regular, caffeine_regular) %>% #PALT_best_performance_trial, PALT_best_performance_score,
   gather(questionnaire, result, -ID, -AgeGroup, -Sex, -Age) %>% 
   filter(questionnaire != 'Moca') %>%
   unique() %>% drop_na() %>% 
@@ -928,14 +2590,14 @@ semmst_data_final_clean %>%
     geom_violin(aes(fill = AgeGroup)) +
     geom_boxplot(aes(fill = AgeGroup), width=0.2) +
     geom_point(position = position_jitter(), size = 2.5) +
-    facet_wrap(~questionnaire, scales = "free", labeller = labeller(questionnaire = c("Non_word_sum"="Non-word repetition raw score",
+    facet_wrap(~questionnaire, ncol = 5, scales = "free", labeller = labeller(questionnaire = c("Non_word_sum"="Non-word repetition raw score",
                                                                                       "Non_word_span" = "Non-word repetition span",
                                                                                       "Beck" = "Beck Depression Score",
                                                                                       "Digit_symbol" = "Digit-Symbol",
                                                                                       "MST_ldi" = "LDI in MST",
                                                                                       "MST_rec_score" = "Recognition in MST",
-                                                                                      "PALT_best_performance_score" = "Best Paired-Associates Score",
-                                                                                      "PALT_best_performance_trial" = "Best Paired-Associte Round",
+                                                                                      #"PALT_best_performance_score" = "Best Paired-Associates Score",
+                                                                                      #"PALT_best_performance_trial" = "Best Paired-Associte Round",
                                                                                       "Vocabulary" = "Vocabulary",
                                                                                       "exercise_regular" = "Exercise hours regularly",
                                                                                       "alcohol_regular" = "Regular alcohol consumption",
@@ -944,7 +2606,7 @@ semmst_data_final_clean %>%
     custom_theme +
     #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
     labs(title = "Results of subject-level covariates", x = "Age Groups", y = "Scores of different covariate tests", color = "ID of Participants") +
-    scale_fill_brewer(palette="Dark2") + 
+    scale_fill_brewer(palette="Paired") + 
     theme(legend.position = "none") 
 
 ```
@@ -967,7 +2629,7 @@ semmst_data_final_clean %>%
     #geom_errorbar(aes(ymin=percentage-sd, ymax=percentage+sd), width=.3,
                  #position=position_dodge(.9), size=0.86) +
     geom_point(aes(x = factor(stimtype_REC, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response_REC, levels=c("old", "new", "None"))), position = position_jitterdodge(dodge.width=1), size = 3) +
-    labs(x = "Condition", y = "Percentage of responses", title = "Percentage of responses for conditions in the Recognition phase of the sMST task", fill = "Type of response") +
+    labs(x = "Condition", y = "Percentage of responses", title = "Percentage of responses for conditions in the Recognition phase", fill = "Type of response") +
     scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
     custom_theme +
     facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
@@ -1147,7 +2809,8 @@ semmst_data_final_clean %>%
     labs(x = "Type of d-prime scores (contrasts)", y = "D-prime scores - discriminability", title = "D-prime scores for contrasts of conditions in the Recognition phase of the sMST task", colour = "Type of d-prime scores (contrasts)") +
     custom_theme +
     facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) + 
-    theme(legend.position = "none") 
+    theme(legend.position = "none") +
+    
 
 ```
 
@@ -1315,7 +2978,7 @@ paper_pencil_data_wide_merge %>%
     custom_theme +
     #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
     labs(title = "Results on paper and pencil tests", x = "Age Groups", y = "Results of different covariate tests", color = "ID of Participants") +
-    scale_fill_brewer(palette="Dark2") + 
+    scale_fill_brewer(palette="Set1") + 
     theme(legend.position = "none") 
 
 ```
@@ -1333,24 +2996,28 @@ smst_stim_list_complex %>%
   filter(merged != "CLOSE-noun_freq" & merged != "DISTANT-noun_freq") %>% 
   filter(merged != "CLOSE-noun_char" & merged != "DISTANT-noun_char") %>% 
   filter(merged != "CLOSE-noun_syll" & merged != "DISTANT-noun_syll") %>% 
-  separate(merged, c("stimtype_REC", "covariate"), sep="-") %>% 
-  ggplot(aes(x = factor(stimtype_REC, levels= c("TARG", "CLOSE", "DISTANT", "FOIL"), labels=c("Targets","Close Lures", "Distant Lures", "Foils")), y = as.numeric(result))) +
+  separate(merged, c("stimtype_REC", "covariate"), sep="-") %>%
+  ggplot(aes(x = factor(stimtype_REC, levels= c("TARG", "CLOSE", "DISTANT", "FOIL"), labels=c("Targets","Close\nLures", "Distant\nLures", "Foils")), y = as.numeric(result))) +
     geom_violin(aes(fill = stimtype_REC)) +
     geom_point(position = position_jitter()) +
     geom_boxplot(aes(fill = stimtype_REC), width=0.2) +
-    facet_wrap(~covariate, scales = "free", labeller = labeller(covariate = c("noun_freq"="Frequency of noun based on Hungarian National Corpus",
-                                                                              "noun_char" = "Number of characters in noun",
-                                                                              "noun_syll" = "Number of syllables in noun",
-                                                                              "adj_freq" = "Frequency of adjective based on Hungarian National Corpus",
-                                                                              "adj_char" = "Number of characters in adjective",
-                                                                              "adj_syll" = "Number of syllables in adjective",
-                                                                              "ya_ert_mean" = "Meaningfulness rating on 1-7 Likert",
-                                                                              "ya_konk_mean" = "Concreteness rating on 1-7 Likert",
-                                                                              "ya_aro_mean" = "Arousal rating on 1-7 Likert"))) +
+    facet_wrap(~covariate, scales = "free", ncol = 3, labeller = labeller(covariate = c("noun_freq"="Noun frequency",
+                                                                              "noun_char" = "Noun characters",
+                                                                              "noun_syll" = "Noun syllables",
+                                                                              "adj_freq" = "Adjective frequency",
+                                                                              "adj_char" = "Adjective characters",
+                                                                              "adj_syll" = "Adjective syllables",
+                                                                              "ya_ert_mean" = "Meaningfulness (30 YA)",
+                                                                              "ya_konk_mean" = "Concreteness (30 YA)",
+                                                                              "ya_aro_mean" = "Arousal (30 YA)",
+                                                                              "oa_ert_mean" = "Meaningfulness (34 OA)",
+                                                                              "oa_konk_mean" = "Concreteness (34 OA)",
+                                                                              "oa_aro_mean" = "Arousal (34 OA)"))) +
     custom_theme +
     #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
-    labs(title = "Covariates of items", x = "Stimulus Conditions", y = "Results of different item-level covariates") +
-    scale_fill_brewer(palette="Dark2") + 
+    labs(title = "Item-level covariates", x = "Stimulus Conditions", y = "Results of different item-level covariates") +
+    #scale_fill_brewer(palette="Dark2") + 
+    scale_fill_manual(values = c("#306EFF", "#FFEF00", "#E41A1C", "#4DAF4A")) +
     theme(legend.position = "none") 
 
 
@@ -1389,10 +3056,11 @@ smst_stim_list %>%
   filter(stim_type == "CLOSE" | stim_type == "DISTANT") %>% 
   ggplot(aes(x = stim_type, y = cosine_metric)) +
     geom_violin(aes(fill = stim_type)) +
-    geom_point(position = position_jitter(width=0.2)) +
+    geom_point(position = position_jitter(width=0.15), size = 3,  shape=1, stroke=2) +
+    #theme_bw() +
     custom_theme +
-    labs(title = "Cosine similarity of lure bins", x = "Type of Lure", y = "Cosine Similarity") +
-    scale_fill_manual(values=c("#306EFF", "#FFEF00")) +
+    labs(title = "Cosine Similarity of\nLures to Targets", x = "Type of Lure", y = "Cosine Similarity") +
+    scale_fill_manual(values=c("#306EFF", "#FFD700")) +
     theme(legend.position = "none") +
     coord_cartesian(ylim = c(0.35, 1))
 
@@ -1405,11 +3073,23 @@ smst_stim_list %>%
 ## GLMEM Plots (Naspi)
 
 ```{r}
-library(sjPlot)
+
 
 plot_model(model_complex_participants_cognitive_health, 
            type = "pred",
-           terms = c("Digit_symbol_scale ", "AgeGroup", "stimtype_REC"),
+           terms = c("MST_ldi_scale", "AgeGroup"), #, "stimtype_REC"),
+           colors = c("seagreen3", "deepskyblue2", "orchid"),
+           title = "Raw probabilities",
+           axis.title = c("MST LDI", "p (judged item is OLD)"),
+           line.size = 2.0,
+           show.data = TRUE,
+           jitter = 0.07
+           )
+
+
+plot_model(model_complex_participants_cognitive_health, 
+           type = "pred",
+           terms = c("Digit_symbol_scale ", "AgeGroup"), #, "stimtype_REC"),
            colors = c("seagreen3", "deepskyblue2", "orchid"),
            title = "Raw probabilities",
            axis.title = c("Digit-Symbol scores (SD)", "p (judged item is OLD)"),
@@ -1429,13 +3109,13 @@ plot_model(model_complex_participants_cognitive_health, type = "pred",
            )
 
 plot_model(model_complex_participants_cognitive_health, type = "pred",
-           terms = c("noun_freq_log_scale", "stimtype_REC"),
+           terms = c("stimtype_REC", "AgeGroup"),
            colors = c("seagreen3", "deepskyblue2", "orchid", "maroon"),
            title = "Raw probabilities",
            axis.title = c("Noun frequency (SD)", "p (judged item is OLD)"),
-           line.size = 2.0
-           #show.data = TRUE,
-           #jitter = 0.07
+           line.size = 2.0,
+           show.data = TRUE,
+           jitter = 0.07
            )
 
 plot_model(model_complex_participants_cognitive_health, type = "pred",
@@ -1460,18 +3140,20 @@ plot_model(model_complex_participants_cognitive_health, type = "pred",
 
 plot_model(model_complex_participants_cognitive_health, type = "est", transform = "exp", terms = c("(Intercept)",
                                                                                 "AgeGroupOA",
+                                                                                "stimtype_RECTARG",
                                                                                 "stimtype_RECCLOSE",
                                                                                 "stimtype_RECDISTANT",
-                                                                                "stimtype_RECFOIL",
+                                                                                "stimtype_RECTARG:AgeGroupOA",
                                                                                 "stimtype_RECCLOSE:AgeGroupOA",
                                                                                 "stimtype_RECDISTANT:AgeGroupOA",
-                                                                                "stimtype_RECFOIL:AgeGroupOA",
+                                                                                "AgeGroupYA:MST_ldi_scale",
                                                                                 "AgeGroupYA:Digit_symbol_scale",
                                                                                 "AgeGroupOA:Non_word_sum_scale",
                                                                                 "stimtype_RECFOIL:noun_freq_log_scale",
-                                                                                "stimtype_RECCLOSE:AgeGroupOA:oa_konk_mean_scale",
+                                                                                "stimtype_RECTARG:noun_freq_log_scale",
+                                                                                "stimtype_RECCLOSE:AgeGroupOA:ya_konk_mean_scale",
                                                                                 "stimtype_RECCLOSE:AgeGroupYA:ya_konk_mean_scale",
-                                                                                "stimtype_RECCLOSE:AgeGroupOA:ya_aro_mean_log_scale"), 
+                                                                                "stimtype_RECDISTANT:AgeGroupYA:ya_konk_mean_scale"), 
            colors = c("seagreen3", "deepskyblue2", "orchid"), 
            show.values = TRUE,
            value.offset = .4,
@@ -1479,25 +3161,41 @@ plot_model(model_complex_participants_cognitive_health, type = "est", transform 
            dot.size = 6,
            line.size = 2.5,
            vline.color = "red",
+           wrap.labels = 70,
            width = 0.5,
            axis.title = c("Exponentiated estimates", "x"),
-           axis.labels = c("Close Lure * Old Adults * YA arousal score","Close Lure * Young Adults * YA concreteness score","Close Lure * Old Adults * OA concreteness score","Foils * Noun frequency","Old adults * Phonological awareness", "Young adults * Processing speed", "Age Group * Close Lure", "Age Group * Distant Lure", "Age Group * Foils", "Old adults", "Foils", "Distant Lure", "Close Lure", "Intercept"),
+           axis.labels = c("Close Lure * Old Adults * YA concreteness score",
+                           "Distant Lure * Young Adults * YA concreteness score", 
+                           "Close Lure * Young Adults * YA concreteness score",
+                           "Target * Noun frequency", 
+                           "Foil * Noun frequency", 
+                           "Young adults * LDI in MST",
+                           "Old adults * Non-word repetition", 
+                           "Young adults * Processing speed", 
+                           "Age Group * Distant Lure", 
+                           "Age Group * Close Lure", 
+                           "Age Group * Target", 
+                           "Old adult", 
+                           "Distant Lure", 
+                           "Close Lure", 
+                           "Target", 
+                           "Intercept (Foil)"),
            title = "Complex model",
            order.terms = c(4,6,3,5,1,2),
            group.terms = c(1,1,2,3,2,3),
-           show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=0.5, size = 15, face="bold"))
+           show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=1, size = 15, face="bold"))
 
 
 plot_model(model_simple, type = "est", transform = "exp", terms = c("(Intercept)",
                                                                                 "AgeGroupOA",
                                                                                 "stimtype_RECCLOSE",
                                                                                 "stimtype_RECDISTANT",
-                                                                                "stimtype_RECFOIL",
+                                                                                "stimtype_RECTARG",
                                                                                 "stimtype_RECCLOSE:AgeGroupOA",
                                                                                 "stimtype_RECDISTANT:AgeGroupOA",
-                                                                                "stimtype_RECFOIL:AgeGroupOA"
+                                                                                "stimtype_RECTARG:AgeGroupOA"
                                                                             ), 
-           colors = c("seagreen3", "deepskyblue2", "orchid"), 
+           colors = c("seagreen3", "deepskyblue2"), 
            show.values = TRUE,
            value.offset = .4,
            value.size = 6,
@@ -1505,1744 +3203,357 @@ plot_model(model_simple, type = "est", transform = "exp", terms = c("(Intercept)
            line.size = 2.5,
            vline.color = "red",
            width = 0.5,
-           axis.labels = c("Age Group * Close Lure", "Age Group * Distant Lure", "Age Group * Foils", "Old Adults", "Foils", "Distant Lure", "Close Lure", "Intercept"),
+           wrap.labels = 70,
+           axis.labels = c("Age Group * Distant Lure", "Age Group * Close Lure", "Age Group * Target", "Old Adults", "Distant Lure", "Close Lure", "Target", "Intercept (Foil)"),
            axis.title = c("Exponentiated estimates", "x"),
            title = "Simple model",
            order.terms = c(4,6,3,5,1,2),
            group.terms = c(1,1,2,3,2,3),
-           show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=0.5, size = 15, face="bold"))
+           show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=1, size = 15, face="bold"))
 
 ```
 
-# STATS
-## Basic stats
+## PUBLICATION PLOTS
 
-Reaction times
-
-```{r}
-
-t.test(reaction_time_ENC ~ AgeGroup, data = semmst_data_final_clean)
-## OA mean: 1.243; YA mean: 1.273
-## t = -5.73, df = 9521, p < .001
-t.test(reaction_time_REC ~ AgeGroup, data = semmst_data_final_clean)
-## OA mean: 1.74; YA mean: 1.447
-## t = 37.631, df = 8209.9, p < .001
-
-```
-
-Accuracy
-
-```{r}
-accuracy_table = semmst_data_final_clean %>% 
-  group_by(AgeGroup, ID, correctness) %>%
-  summarise(cnt = n()) %>% 
-  mutate(percent_correct=cnt/sum(cnt)) %>% 
-  filter(correctness == 1) %>% 
-  arrange(desc(percent_correct))
-
-
-t.test(percent_correct ~ AgeGroup, data = accuracy_table)
-
-accuracy_table %>% group_by(AgeGroup) %>% 
-  summarise(resp_rate = mean(percent_correct), resp_sd = sd(percent_correct))
-
-```
-
-
-Encoding response
+### Figure 1 C - cosine similarities
 
 ```{r}
 
-encresp_table = semmst_data_final_clean %>% 
-  filter(response_ENC == "good" | response_ENC == "no-good") %>%
-  group_by(AgeGroup, ID, response_ENC) %>%
-  summarise(cnt = n()) %>% 
-  mutate(percent_resp=cnt/sum(cnt)) %>% 
-  filter(response_ENC == "good") %>% 
-  arrange(desc(percent_resp))
-
-t.test(percent_resp ~ AgeGroup, data = encresp_table)
-
-encresp_table %>% group_by(AgeGroup) %>% 
-  summarise(resp_rate = mean(percent_resp), resp_sd = sd(percent_resp))
-
-```
-
-
-## STIMULI T-TESTS
-
-### Young Adult scores
-
-```{r}
-
-# Model
-
-model_stim_ert_ya <- aov(ya_ert_mean ~ stimtype_REC, data = smst_stim_list_complex)
-summary(model_stim_ert_ya)
-# Significant F = 38.06, p < .001
-model_stim_konk_ya <- aov(ya_konk_mean ~ stimtype_REC, data = smst_stim_list_complex)
-summary(model_stim_konk_ya)
-# Significant F = 7.52, p < .001
-model_stim_aro_ya <- aov(ya_aro_mean ~ stimtype_REC, data = smst_stim_list_complex)
-summary(model_stim_aro_ya)
-# Significant F = 17.18, p < .001
-### Significant main effects 
-
-# Checking effect of manipulation
-smst_stim_list_complex %>%
-  filter(stimtype_REC != "FOIL") %>% 
-  pairwise_t_test(
-    ya_konk_mean ~ stimtype_REC, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE VS DISTANT not sig. t = 2.36; p = 0.061
-# CLOSE VS TARG sig.t = -2.80; p = 0.019
-# DISTANT VS TARG sig. t = -4.50; p = < 0.001
-
-
-smst_stim_list_complex %>%
-  filter(stimtype_REC != "FOIL") %>%
-  pairwise_t_test(
-    ya_ert_mean ~ stimtype_REC, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE VS DISTANT sig. t = 3.19; p = < 0.001
-# CLOSE VS TARG sig.t = -5.78; p = < 0.001
-# DISTANT VS TARG sig. t = -7.49; p = < 0.001
-
-smst_stim_list_complex %>%
-  filter(stimtype_REC != "FOIL") %>%
-  pairwise_t_test(
-    ya_aro_mean ~ stimtype_REC, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE VS DISTANT sig. t = 5.96; p = < 0.001
-# CLOSE VS TARG not sig. t = -1.20; p = < 0.6
-# DISTANT VS TARG sig. t = -7.01; p = < 0.001
-
-## EFFECT SIZES
-library(effectsize)
-require(pwr)
-
-eta_squared(model_stim_ert_ya, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_stim_konk_ya) # Full summary
-
-eta_squared(model_stim_ert_ya, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_stim_ert_ya) # Full summary
-
-eta_squared(model_stim_ert_ya, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_stim_aro_ya) # Full summary
-
-
-### PLOTS
-smst_stim_list_lures = smst_stim_list %>% 
-  filter(stim_type == "CLOSE" | stim_type == "DISTANT")
-
-smst_stim_list_close = smst_stim_list_lures %>% 
-  filter(stim_type == "CLOSE")
-
-smst_stim_list_distant = smst_stim_list_lures %>% 
-  filter(stim_type == "DISTANT")
-
-cor.test(smst_stim_list_lures$ya_ert_mean, smst_stim_list_lures$cosine_metric, method = c("pearson"))
-# lures cosine metric and interpertability: 0.188 corr; p = 0.0076
-cor.test(smst_stim_list_close$ya_ert_mean, smst_stim_list_close$cosine_metric, method = c("pearson"))
-# close lures cosine metric and interpertability: 0.197 corr; p = 0.04938
-cor.test(smst_stim_list_distant$ya_ert_mean, smst_stim_list_distant$cosine_metric, method = c("pearson"))
-# distant lures cosine metric and interpertability: -0.228 corr; p = 0.02246
-
-ggscatter(smst_stim_list_lures, x = "cosine_metric", y = "ya_ert_mean", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
-ggscatter(smst_stim_list_close, x = "cosine_metric", y = "ya_konk_mean", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
-ggscatter(smst_stim_list_distant, x = "cosine_metric", y = "ya_aro_mean", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
-
-
-```
-
-### Old Adult scores
-
-```{r}
-
-# Model
-
-model_stim_ert_oa <- aov(oa_ert_mean ~ stimtype_REC, data = smst_stim_list_complex)
-summary(model_stim_ert_oa)
-
-model_stim_konk_oa <- aov(oa_konk_mean ~ stimtype_REC, data = smst_stim_list_complex)
-summary(model_stim_konk_oa)
-
-model_stim_aro_oa <- aov(oa_aro_mean ~ stimtype_REC, data = smst_stim_list_complex)
-summary(model_stim_aro_oa)
-
-### Significant main effects 
-#### No significant interaction
-
-# Checking effect of manipulation
-smst_stim_list_complex %>%
-  filter(stimtype_REC != "FOIL") %>% 
-  pairwise_t_test(
-    oa_konk_mean ~ stimtype_REC, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE VS DISTANT sig. t = 3.61; p = 0.001
-# CLOSE VS TARG not sig. t = 2.21; p = 0.087
-# DISTANT VS TARG not sig. t = -2.15; p = 0.102
-
-smst_stim_list_complex %>%
-  filter(stimtype_REC != "FOIL") %>%
-  pairwise_t_test(
-    oa_ert_mean ~ stimtype_REC, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE VS DISTANT sig. t = 4.66; p < 0.001
-# CLOSE VS TARG sig. t = -3.68; p < 0.001
-# DISTANT VS TARG sig. t = -7.20; p < 0.001
-
-smst_stim_list_complex %>%
-  filter(stimtype_REC != "FOIL") %>%
-  pairwise_t_test(
-    oa_aro_mean ~ stimtype_REC, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE VS DISTANT not sig. t = -0.217; p < 0.1
-# CLOSE VS TARG sig. t = -7.48; p < 0.001
-# DISTANT VS TARG sig. t = -3.34; p < 0.001
-
-library(effectsize)
-require(pwr)
-
-
-eta_squared(model_stim_ert_oa, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_stim_ert_oa) # Full summary
-
-eta_squared(model_stim_konk_oa, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_stim_konk_oa) # Full summary
-## Low power
-
-eta_squared(model_stim_aro_oa, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_stim_aro_oa) # Full summary
-## Low power
-
-
-smst_stim_list_lures = smst_stim_list %>% 
-  filter(stim_type == "CLOSE" | stim_type == "DISTANT")
-
-smst_stim_list_close = smst_stim_list_lures %>% 
-  filter(stim_type == "CLOSE")
-
-smst_stim_list_distant = smst_stim_list_lures %>% 
-  filter(stim_type == "DISTANT")
-
-cor.test(smst_stim_list_lures$oa_ert_mean, smst_stim_list_lures$cosine_metric, method = c("pearson"))
-# lures cosine metric and interpertability: 0.251 corr; p = 0.0003
-cor.test(smst_stim_list_close$oa_ert_mean, smst_stim_list_close$cosine_metric, method = c("pearson"))
-# lures cosine metric and interpertability: 0.115 corr; p = 0.2555
-cor.test(smst_stim_list_distant$oa_ert_mean, smst_stim_list_distant$cosine_metric, method = c("pearson"))
-# lures cosine metric and interpertability: -0.186 corr; p = 0.0112
-
-
-ggscatter(smst_stim_list_lures, x = "cosine_metric", y = "oa_ert_mean", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
-ggscatter(smst_stim_list_close, x = "cosine_metric", y = "oa_konk_mean", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
-ggscatter(smst_stim_list_distant, x = "cosine_metric", y = "oa_aro_mean", 
-          add = "reg.line", conf.int = TRUE, 
-          cor.coef = TRUE, cor.method = "pearson",
-          xlab = "Miles/(US) gallon", ylab = "Weight (1000 lbs)")
-
-```
-
-
-## Basic ANOVA models
-
-### Assumption check
-
-```{r}
-semmst_data_final_clean_ANOVA = semmst_data_final_clean %>% 
-  select(ID, AgeGroup, rec_dprime, close_dprime, distant_dprime) %>%  distinct() %>% 
-  gather("type", "dprime", -c(ID,AgeGroup))
-
-
-# No significant outliers
-semmst_data_final_clean_ANOVA %>% 
-  ggplot(aes(y=dprime)) +
-   geom_boxplot() +
-   facet_grid(AgeGroup~type) 
-
-semmst_data_final_clean_ANOVA %>% 
-  group_by(AgeGroup, type) %>% 
-  rstatix::identify_outliers(dprime)
-### No extreme outliers
-# Outiers: 1 OA-close, 1 OA-dist, 3 OA-rec, 4 YA-CLOSE, 1 YA-DIST, 1 YA-targ
-
-
-# Normal distribution of outcome in each cell
-semmst_data_final_clean_ANOVA %>% 
-  ggpubr::ggqqplot(x = "dprime")
-
-semmst_data_final_clean_ANOVA %>% 
-  ggplot(aes(sample=dprime)) +
-   stat_qq_band() +
-   stat_qq_line() +
-   stat_qq_point() +
-   facet_grid(AgeGroup~type)
-### OA_DISTANT looks wrong: 851046 - ID
-
-semmst_data_final_clean_ANOVA %>%
-  #filter(ID != 851046) %>% 
-  group_by(AgeGroup, type) %>%
-  shapiro_test(dprime)
-### OA distant and YA rec is significant - bc of 851046
-### After removing 851046 only YA_REC is significant - p = 0.0338 - but we decide to not exclude, because it violates homogenity
-    
-# Homogenity - Levene
-semmst_data_final_clean_ANOVA %>%
-  group_by(type)%>% 
-  levene_test(dprime ~ as.factor(AgeGroup))
-#### Not significant with all subjects
-
-# Homogenity of covariance
-box_m(semmst_data_final_clean_ANOVA[, "dprime", drop = FALSE], semmst_data_final_clean_ANOVA$AgeGroup)
-### Not significant - p = 0.0837
-
-
-```
-
-### The model
-
-```{r}
-
-# Model
-
-model_anova <- aov(dprime ~ AgeGroup * type, data = semmst_data_final_clean_ANOVA)
-summary(model_anova)
-
-#semmst_data_final_clean_ANOVA_wo_distant = semmst_data_final_clean_ANOVA %>% 
-#  filter(type != "distant_dprime")
-#model_anova_wo_distant <- aov(dprime ~ AgeGroup * type, data = semmst_data_final_clean_ANOVA_wo_distant)
-#summary(model_anova_wo_distant)
-
-### Significant main effects 
-#### AgeGroup: F = 35.12; p < 0.001
-#### type: F = 27.43; p < 0.001
-#### No significant interaction
-
-# Checking effect of manipulation
-semmst_data_final_clean_ANOVA %>%
-  pairwise_t_test(
-    dprime ~ type, paired = TRUE, 
-    p.adjust.method = "bonferroni"
-  )
-# CLOSE vs DISTANT not sig. t = -13.4; p < 0.001
-# CLOSE vs REC significant t = -11.5; p < 0.001
-# DISTANT vs REC significant t = -0.284; p = 0.691
-
-library(effectsize)
-require(pwr)
-
-eta_squared(model_anova, partial = FALSE) # Eta-squared
-sjstats::anova_stats(model_anova) # Full summary
-## AgeGroup eta2 = 0.11
-## stimtype eta2 = 0.17
-## interaction eta2 = 0.00228
-
-```
-
-
-## Analyses - GLMEM
-
-
-### Covariate stats
-
-AgeGroup differences + interaction in MST
-
-
-### GLMEM
-
-
-#### Checking presumptions - MD outliers
-
-```{r}
-# Outliers: Mahalanobis
-ID_to_identify = semmst_data_final_clean %>% 
-  select("ID", "Beck", "Vocabulary", "Digit_symbol", "Non_word_sum", "Non_word_span", "MST_rec_score", "MST_ldi", "PALT_best_performance_trial", "PALT_best_performance_score", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular") %>% 
-  distinct()
-
-
-
-data_structure = semmst_data_final_clean %>% 
-  select("Beck", "Vocabulary", "Digit_symbol", "Non_word_sum", "Non_word_span", "MST_rec_score", "MST_ldi", "PALT_best_performance_trial", "PALT_best_performance_score", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular") %>% 
-  distinct() 
-
-data_structure.center  = colMeans(data_structure)
-data_structure.cov     = cov(data_structure)
-
-# Finding distances
-distances <- mahalanobis(x = data_structure , center = data_structure.center , cov = data_structure.cov)
-
-# Cutoff value for ditances from Chi-Sqaure Dist. 
-# with p = 0.95 df = 2 which in ncol(air)
-cutoff <- qchisq(p = 0.95 , df = ncol(data_structure))
-
-## Display observation whose distance greater than cutoff value
-cut_offs = data_structure[distances > cutoff ,]
-result = merge(cut_offs, ID_to_identify)
-## Returns : 2., 29. observations -> IDs: 006150 - MST check?;  421568 - MST check + ismerte az MST-t, de össze volt zavarodva, hogy "melyiket kérdeztük?"
-## Returns: 24., 33. observations -> IDs: 392539 - Digit Symbol 95 nagyon magas; 449122 - Vocabulary 8 nagyon alacsony
-
-semmst_data_final_clean_GLMEM = semmst_data_final_clean %>% 
-  filter(ID != "006150" & ID != "421568" & ID != "392539" & ID != "449122") %>% 
-  mutate(across(c(ya_aro_mean, ya_ert_mean, adj_freq, noun_freq, oa_aro_mean, oa_ert_mean, adj_phon), .fns = list(log = ~log(.x+1-min(.x))))) %>% 
-  mutate(across(where(is.numeric), .fns = list(scale = scale))) %>% 
-  mutate(AgeGroup = relevel(AgeGroup, "YA")) %>% 
-  mutate(stimtype_REC = relevel(stimtype_REC, "FOIL")) %>% 
-  mutate(response_REC = as.factor(response_REC))
-
-  
-```
-
-
-
-#### Normality of random effects
-
-```{r}
-
-## Dataframes for plot
-semmst_data_final_clean_plot_OA = semmst_data_final_clean_GLMEM %>% 
-  select("Age" , "Beck_scale", "Vocabulary_scale", "Digit_symbol_scale", "Non_word_sum_scale", "Non_word_span_scale", "MST_rec_score_scale", "MST_ldi_scale", "PALT_best_performance_trial_scale", "PALT_best_performance_score_scale", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular_scale") %>%
-  filter(Age > 50) %>% 
-  distinct() %>%
-  gather(questionnaire, result) %>% 
-  mutate(result = as.numeric(result))
-
-semmst_data_final_clean_plot_YA = semmst_data_final_clean_GLMEM %>% 
-  select("Age" , "Beck_scale", "Vocabulary_scale", "Digit_symbol_scale", "Non_word_sum_scale", "Non_word_span_scale", "MST_rec_score_scale", "MST_ldi_scale", "PALT_best_performance_trial_scale", "PALT_best_performance_score_scale", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular_scale") %>% 
-  filter(Age < 50) %>% 
-  distinct() %>% 
-  mutate_if(is.numeric, list(scale)) %>% 
-  gather(questionnaire, result) %>% 
-  mutate(result = as.numeric(result))
-
-semmst_data_final_clean_plot_word = semmst_data_final_clean_GLMEM %>% 
-  select("noun_freq_log_scale", "noun_char_scale", "noun_phon_scale", "adj_freq_log_scale", "adj_char_scale", "adj_phon_log_scale", "ya_ert_mean_log_scale", "ya_konk_mean_scale", "ya_aro_mean_log_scale", "oa_ert_mean_log_scale", "oa_konk_mean_scale", "oa_aro_mean_log_scale") %>% 
-  distinct() %>%
-  gather(questionnaire, result) %>% 
-  mutate(result = as.numeric(result))
-
-## HISTOGRAMS
-semmst_data_final_clean_plot_OA %>%
-  na.omit() %>% 
-  ggplot(aes(x = as.numeric(result))) +
-    geom_histogram(bins = 5) + 
-    facet_wrap(~questionnaire, scales = 'free_x')
-# Non-normal: alcohol_regular?, Beck?, caffeine_regular, PALT_best_trial, Vocabulary?
-
-semmst_data_final_clean_plot_YA %>% 
-  na.omit() %>% 
-  ggplot(aes(as.numeric(result))) +
-    geom_histogram(bins = 5) + 
-    facet_wrap(~questionnaire, scales = 'free_x')
-# Non-normal: Age, Beck, caffeine_regular, Non_word_span, PALT_trial, 
-
-semmst_data_final_clean_plot_word %>% 
-  ggplot(aes(result)) +
-    geom_histogram(bins = 5) + 
-    facet_wrap(~questionnaire, scales = 'free_x')
-#Non-normal: ya_aro, ya_ert, oa_ert, oa_aro, adj_freq
-
-
-## NORMALITY OF RESIDUALS
-
-semmst_data_final_clean_plot_OA %>% 
-  ggplot(aes(sample=as.numeric(result))) +
-    stat_qq_band() +
-    stat_qq_line() +
-    stat_qq_point() +
-    facet_wrap(~questionnaire, scales = 'free')
-# Non-normal: caffeine_regular, PALT_best_performance_trial
-
-semmst_data_final_clean_plot_YA %>% 
-  ggplot(aes(sample=as.numeric(result))) +
-    stat_qq_band() +
-    stat_qq_line() +
-    stat_qq_point() +
-    facet_wrap(~questionnaire, scales = 'free')
-# Non-normal: caffeine_regular, PALT_best_performance_score, PALT_best_trial
-
-semmst_data_final_clean_plot_word %>% 
-  ggplot(aes(sample=result)) +
-    stat_qq_band() +
-    stat_qq_line() +
-    stat_qq_point() +
-    facet_wrap(~questionnaire, scales = 'free')
-#Non-normal: ya_ert, adj_freq, oa_ert, adj_phon, noun_phon
-
-
-# Normality test?
-semmst_data_final_clean_plot_OA %>%
-  drop_na() %>% 
-  group_by(questionnaire) %>%
-  shapiro_test(result)
-
-semmst_data_final_clean_plot_YA %>%
-  drop_na() %>% 
-  group_by(questionnaire) %>%
-  shapiro_test(result)
-
-semmst_data_final_clean_plot_word %>%
-  drop_na() %>% 
-  group_by(questionnaire) %>%
-  shapiro_test(result)
-
-```
-
-
-#### MODELS based on Naspi (2022) - Base models (most complex) - OA & YA + all stim types
-
-Simple model - no covariates
-
-```{r}
-library(lme4)
-library('ggeffects')
-library(optimx)
-library(afex)
-library(dfoptim)
-library(broom)
-library(broom.mixed)
-library(performance)
-```
-
-
-```{r}
-model_simple = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-```
-
-Model analysis and plot?
-
-```{r}
-# OR
-broom.mixed::tidy(model_simple, conf.int = TRUE, exponentiate = TRUE)
-
-# In this plot, we will only include sex and ticket price as predictors.
-semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
-  ggplot() +
-    aes(y = response_REC, x = stimtype_REC, group = AgeGroup, color = AgeGroup) +
-    #geom_point() +
-    geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1)) +
-    scale_y_continuous(labels = scales::percent_format()) +
+smst_stim_list %>%
+  select(stim_type, noun, cosine_metric) %>% 
+  filter(stim_type == "CLOSE" | stim_type == "DISTANT") %>% 
+  ggplot(aes(x = stim_type, y = cosine_metric)) +
+    geom_violin(aes(fill = stim_type)) +
+    geom_point(position = position_jitter(width=0.15), size = 3,  shape=1, stroke=2) +
+    #theme_bw() +
     custom_theme +
-    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Similarity conditions")
+    labs(title = "Cosine Similarity of\nLures to Targets", x = "Type of Lure", y = "Cosine Similarity") +
+    scale_fill_manual(values=c("#306EFF", "#FFD700")) +
+    theme(legend.position = "none") +
+    coord_cartesian(ylim = c(0.35, 1))
 
-# Evaluating model
-r2(model_simple)
+```
 
-summary(model_simple)
+### Figure 2 - ENCODING results
+
+ENCODING responses
+
+```{r}
+
+# Grand
+semmst_data_enc_se = semmst_data_enc %>% 
+  select(ID, AgeGroup, stimtype, response) %>% 
+  group_by(ID, AgeGroup, stimtype, response) %>%
+  filter(response != "None") %>% 
+  count() %>%
+  group_by(ID, AgeGroup, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>% 
+  group_by(AgeGroup, stimtype ,response) %>%
+  summarise(se = sd(percentage, na.rm=FALSE) / sqrt(length(percentage)),
+            percentage = mean(percentage, na.rm=FALSE))
+
+semmst_data_enc %>% 
+  select(ID, AgeGroup, stimtype, response) %>% 
+  group_by(ID, AgeGroup, stimtype, response) %>%
+  filter(response != "None") %>% 
+  count() %>%
+  group_by(ID, AgeGroup, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>% 
+  ggplot(aes(x=stimtype, y=percentage)) + 
+    geom_bar(aes(fill = response),position=position_dodge(width=1), stat="summary") +
+    #geom_point(aes(x=stimtype, y=percentage, fill = response),position=position_jitterdodge(dodge.width=1, jitter.width=0.1), size = 3) +
+    geom_errorbar(aes(ymin = percentage-se, ymax = percentage+se, group = response), position=position_dodge(1), width =.2, size = 1.5, data=semmst_data_enc_se) +
+    custom_theme + 
+    labs(x = "Encoding stimulus type", y = "Percentage of responses", title = "Good or not-good responses in SMST encoding phase ", fill = "Response\nmade") +
+    scale_y_continuous(breaks = seq(0,1, by =0.2), limits = c(0,1), labels=percent) +
+    scale_fill_brewer(palette="Dark2", labels = c("good", "no-good")) +
+    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_x_discrete(labels=c("TARG" = "TARGET",
+                              "FOIL" = "FOIL"))
 
 ```
 
 
-Complex models
+ENCODING RT
 
 ```{r}
-
-
-## Simple models no interaction - to check collinearity
-model_simple_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        Beck_scale +
-                                        Vocabulary_scale +
-                                        Digit_symbol_scale +
-                                        Non_word_sum_scale +
-                                        MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_simple_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        alcohol_regular +
-                                        sleep_regular +
-                                        exercise_regular +
-                                        sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-
-model_simple_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        oa_konk_mean_scale +
-                                        ya_konk_mean_scale +
-                                        ya_aro_mean_log_scale +
-                                        oa_aro_mean_log_scale +
-                                        noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-check_collinearity(model_simple_participants_cognitive)
-check_collinearity(model_simple_participants_health) # High correlation: sedentary
-check_collinearity(model_simple_items)
-
-## Most complex models with all predictors
-model_complex_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-# Model converging
-
-model_complex_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * alcohol_regular +
-                                        stimtype_REC * AgeGroup * sleep_regular +
-                                        stimtype_REC * AgeGroup * exercise_regular +
-                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-# Model not converging - ordinal values
-## Data should be used as random effects
-
-model_complex_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * oa_konk_mean_scale +
-                                        stimtype_REC * AgeGroup * ya_konk_mean_scale +
-                                        stimtype_REC * AgeGroup * ya_aro_mean_log_scale +
-                                        stimtype_REC * AgeGroup * oa_aro_mean_log_scale +
-                                        stimtype_REC * AgeGroup * noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-# Model converging
-
-
-
-```
-
-Model evaluations
-
-```{r}
-# Basic summary
-summary(model_simple)
-
-summary(model_complex_participants_cognitive)
-summary(model_complex_participants_health)
-summary(model_complex_items)
-
-# Pseudo-r2
-r2(titanic_fit)
-augment(titanic_fit, type.predict = "response")
-plot(performance_roc(titanic_fit))
-tab_model(titanic_fit,
-              show.aic = TRUE,
-              show.loglik = TRUE,
-              collapse.se = TRUE)
-    
-
-```
-
-Complex models - random effects Participant
-
-```{r}
-
-model_complex_participants_cognitive_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        AgeGroup:Beck_scale +
-                                        AgeGroup:Vocabulary_scale +
-                                        AgeGroup:Digit_symbol_scale +
-                                        AgeGroup:Non_word_sum_scale +
-                                        AgeGroup:MST_ldi_scale +
-                                        AgeGroup:exercise_regular +
-                                        AgeGroup:sleep_regular +
-                                        stimtype_REC*AgeGroup:oa_konk_mean_scale +
-                                        stimtype_REC*AgeGroup:ya_konk_mean_scale +  
-                                        stimtype_REC*AgeGroup:oa_aro_mean_log_scale +
-                                        stimtype_REC*AgeGroup:ya_aro_mean_log_scale +
-                                        stimtype_REC:noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='bobyqa', optCtrl=list(maxfun = 20000)), nAGQ=0)
-
-summary(model_complex_participants_cognitive_health)
-broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE) %>%  print(n = 70)
-r2(model_complex_participants_cognitive_health)
-### AIC = 9022.9; R2 = 0.475
-#### Significant main effects of cond
-### TARG: estimate = 8.96, p < .001
-### CLOSE: estimate = 1.92, p < .001
-### DISTANT: estimate = 1.17, p = .096
-#### N.s. AgeGroup effect
-### Age: estimate = 1.44, p = .42
-#### Significant interactions
-### TARG * Age: estimate = .53, p < .001
-### DISTANT * Age: estimate = .78, p = .05
-#### N.s. interaction
-### CLOSE * Age: estimate = 1.01, p = .91
-#### Covariates
-### AgeYA * Digit_Symbol: estimate = 0.83, p = .03
-### AgeOA * Non_word_sum_scale: estimate = 1.15, p = .02
-### AgeYA * MST_ldi: estimate = 0.88, p = 0.05
-### FOIL * noun_freq: estimate = 1.08, p = .02
-### TARG * noun_freq: estimate = 0.93, p = .01
-### CLOSE * AgeYA * oa_konk: estimate = 0.81, p = .04
-### CLOSE * AgeYA * ya_konk: estimate = 1.47, p < .001
-### DISTANT * AgeYA * ya_konk:estimate = 1.31, p < .01
-### CLOSE * AgeOA * ya_konk: estimate = 1.20, p = .04
-
-model_optimal_participants_cognitive_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1 + exercise_regular + alcohol_regular + sleep_regular|ID) + 
-                                        (1 + |itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_optimal_participants_cognitive_health_word = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1 + exercise_regular + alcohol_regular + sleep_regular|ID) + 
-                                        (1 + oa_konk_mean_scale + ya_konk_mean_scale + oa_aro_mean_log_scale + ya_aro_mean_log_scale + noun_freq_log_scale|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-
-```
-
-```{r}
-summary(model_complex_participants_cognitive_health)
-
-#summary(model_complex_participants_cognitive_health)
-
-# OR
-broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE)
-
-# In this plot, we will only include sex and ticket price as predictors.
-semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
-  ggplot() +
-    aes(y = response_REC, x = stimtype_REC, group = AgeGroup, color = AgeGroup) +
-    #geom_point() +
-    geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1)) +
-    scale_y_continuous(labels = scales::percent_format()) +
+# Reaction times in ENC based on response for conditions - faceted by age groups
+semmst_data_enc %>% 
+  drop_na(reaction_time) %>% 
+  select(ID, AgeGroup, itemno, stimtype, response, reaction_time) %>% 
+  ggplot(aes(x = stimtype, y = reaction_time)) +
     custom_theme +
-    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Similarity conditions")
-
-# Evaluating model
-r2(model_complex_participants_cognitive_health)
-
-
-
-```
-
-
-##### Model variations
-
-###### Cognitive
-
-```{r}
-
-model_complex_participants_cognitive_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_D = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_E = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-#Winner model: B, AIC = 9011.3
-
-```
-
-Further subtracting
-
-```{r}
-
-model_complex_participants_cognitive_B_inverse = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B_D = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-#Winner model: B_A, AIC = 9010.4
-
-```
-
-```{r}
-
-summary(model_complex_participants_cognitive_B_inverse)
-summary(model_complex_participants_cognitive_B_A)
-summary(model_complex_participants_cognitive_B_B)
-summary(model_complex_participants_cognitive_B_C)
-summary(model_complex_participants_cognitive_B_D)
-
-```
-
-Even further
-
-```{r}
-
-model_complex_participants_cognitive_B_A_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        #stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B_A_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        #stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_cognitive_B_A_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * Beck_scale +
-                                        #stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        #stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-summary(model_complex_participants_cognitive_B_A_A)
-summary(model_complex_participants_cognitive_B_A_B)
-summary(model_complex_participants_cognitive_B_A_C)
-
-# All models worse
-
-```
-
-Winner model
-
-```{r}
-
-model_complex_participants_cognitive_optimal = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+    geom_violin(aes(fill = response), position = position_dodge(width=1)) +
+    geom_boxplot(aes(groupby = response), position = position_dodge(width = 1), width = 0.3, lwd = 2) +
+    labs(x = "Encoding stimulus type", 
+         y = "Reaction time", 
+         title = "Reaction time in SMST encoding phase\nby age group, stimulus type and response", 
+         fill = "Response\nmade") +
+    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_fill_brewer(palette = "Dark2", labels = c("good", "no-good")) +
+    scale_x_discrete(labels=c("TARG" = "TARGET",
+                              "FOIL" = "FOIL"))
 
 ```
 
 
-```{r}
-# OR
-broom.mixed::tidy(model_complex_participants_cognitive_optimal, conf.int = TRUE, exponentiate = TRUE)
+### Figure 3 - RECOGNITION results
 
-# In this plot, we will only include sex and ticket price as predictors.
-semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
-  ggplot() +
-    aes(y = response_REC, x = stimtype_REC, group = AgeGroup, color = AgeGroup) +
-    #geom_point() +
-    geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1)) +
-    scale_y_continuous(labels = scales::percent_format()) +
+Responses
+
+```{r}
+semmst_data_rec_se = semmst_data_rec %>%
+  filter(response != "None") %>%
+  select(AgeGroup, ID, stimtype, response) %>%
+  group_by(AgeGroup, ID, stimtype, response) %>% filter(response != "4") %>% 
+  count() %>%
+  ungroup() %>%
+  group_by(AgeGroup, ID, stimtype) %>%
+  mutate(percentage_id = n/sum(n)) %>%
+  group_by(AgeGroup, stimtype, response) %>%
+  summarise(se = sd(percentage_id, na.rm=FALSE) / sqrt(length(percentage_id)),
+            percentage_id = mean(percentage_id, na.rm=FALSE))
+
+semmst_data_rec %>%
+  filter(response != "None") %>%
+  select(AgeGroup, ID, stimtype, response) %>%
+  group_by(AgeGroup, ID, stimtype, response) %>% filter(response != "4") %>% 
+  count() %>%
+  ungroup() %>%
+  group_by(AgeGroup, ID, stimtype) %>%
+  mutate(percentage_id = n/sum(n)) %>%
+  ungroup() %>%
+  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None")))) +
+    geom_bar(stat = "summary", position = position_dodge(width=1)) +
+    geom_errorbar(aes(ymin=percentage_id-se, ymax=percentage_id+se, group=factor(response, levels=c("old", "new"))), width=.2,
+                 position=position_dodge(1), size=1.5, data = semmst_data_rec_se) +
+    #geom_point(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None"))), position = position_jitterdodge(dodge.width=1, jitter.width = 0.2), size = 3) +
+    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Percentage of responses given for different\n stimulus conditions in the Recognition phase of the SMST task", fill = "Type of\nresponse") +
+    scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
     custom_theme +
-    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Similarity conditions")
-
-# Evaluating model
-r2(model_complex_participants_cognitive_optimal)
+    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_fill_brewer(palette = "Dark2") +
+    scale_x_discrete(labels=c("TARG" = "TARGET", 
+                              "CLOSE" = "CLOSE\nLURE",
+                              "DISTANT" = "DISTANT\nLURE",
+                              "FOIL" = "FOIL"))
 
 ```
 
-###### Health
+
+RT
 
 ```{r}
 
-model_complex_participants_health_A = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * alcohol_regular +
-                                        stimtype_REC * AgeGroup * sleep_regular +
-                                        stimtype_REC * AgeGroup * exercise_regular +
-                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_health_B = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * alcohol_regular +
-                                        #stimtype_REC * AgeGroup * sleep_regular +
-                                        stimtype_REC * AgeGroup * exercise_regular +
-                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_participants_health_C = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * alcohol_regular +
-                                        stimtype_REC * AgeGroup * sleep_regular +
-                                        #stimtype_REC * AgeGroup * exercise_regular +
-                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-summary(model_complex_participants_health_A)
-summary(model_complex_participants_health_B)
-summary(model_complex_participants_health_C)
+# Reaction times in REC based on response for conditions - faceted by age groups
+semmst_data_rec %>% 
+  drop_na(reaction_time) %>% 
+  filter(response != "4") %>%
+  filter(reaction_time < 3) %>% 
+  select(ID, AgeGroup, itemno, stimtype, response, reaction_time) %>% 
+  ggplot(aes(x = stimtype, y = reaction_time)) +
+    custom_theme +
+    geom_violin(aes(fill = AgeGroup), position = position_dodge(width=1)) +
+    geom_boxplot(aes(groupby = AgeGroup), position = position_dodge(width = 1), width = 0.3, lwd = 2) +
+    labs(x = "Recognition stimulus type", 
+         y = "Reaction time", 
+         title = "Reaction time in SMST recognition phase\nby age group and response", 
+         fill = "Age Group") +
+    #facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_fill_brewer(palette = "Paired", labels = c("Old\nadults", "Young\nadults")) +
+    scale_x_discrete(labels=c("TARG" = "TARGET",
+                              "CLOSE" = "CLOSE\nLURE",
+                              "DISTANT" = "DISTANT\nLURE",
+                              "FOIL" = "FOIL"))
 
 
 ```
 
 
-###### Word
+
+D-prime
 
 ```{r}
 
-model_complex_participants_word_A = clmm(rating ~ temp + contact + (1|judge), data = wine) 
-
-glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        #stimtype_REC * AgeGroup * alcohol_regular +
-                                        stimtype_REC * AgeGroup * sleep_regular +
-                                        stimtype_REC * AgeGroup * exercise_regular +
-                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
+# Boxplot
+dprimes_table %>% 
+  ggplot(aes(x = factor(type, labels = c("TARGET vs.\nCLOSE LURE", "TARGET vs.\nDISTANT LURE", "TARGET vs.\nFOIL")), y = dprime)) +
+    geom_boxplot(aes(colour = factor(type, labels = c("TARGET vs.\nCLOSE LURE", "TARGET vs.\nDISTANT LURE", "TARGET vs.\nFOIL"))), lwd=1.3) +
+    geom_point(aes(x = factor(type, labels = c("TARGET vs.\nCLOSE LURE", "TARGET vs.\nDISTANT LURE", "TARGET vs.\nFOIL")), y = dprime), position = position_jitter(width=0.1), size = 3) +
+    #scale_colour_brewer(palette="Dark2") +
+    scale_colour_manual(values = c("#306EFF", "#FFEF00",  "#E41A1C")) +
+    labs(x = "Type of d' scores (contrasts)", y = "D' score - discriminability", title = "D' scores for different contrasts split by age group", colour = "Type of d' scores (contrasts)") +
+    custom_theme +
+    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    theme(legend.position = "none")
 
 ```
 
-##### Continous model
+
+Covariates
 
 ```{r}
-
-model_simple_cont_only = glmer(response_REC ~ AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_complex_cont_only = glmer(response_REC ~ cosine_metric * AgeGroup +
-                                        AgeGroup:Beck_scale +
-                                        AgeGroup:Vocabulary_scale +
-                                        AgeGroup:Digit_symbol_scale +
-                                        AgeGroup:Non_word_sum_scale +
-                                        AgeGroup:MST_ldi_scale +
-                                        AgeGroup:exercise_regular +
-                                        AgeGroup:sleep_regular +
-                                        cosine_metric*AgeGroup:oa_konk_mean_scale +
-                                        cosine_metric*AgeGroup:ya_konk_mean_scale +  
-                                        cosine_metric*AgeGroup:oa_aro_mean_log_scale +
-                                        cosine_metric*AgeGroup:ya_aro_mean_log_scale +
-                                        cosine_metric:noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='bobyqa', optCtrl=list(maxfun = 20000)), nAGQ=0)
-
-model_simple_cont_all = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_simple_cont_nofoil = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = filter(semmst_data_final_clean_GLMEM, stimtype_REC != "FOIL"),
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+semmst_data_final_clean %>%
+  select(ID, AgeGroup, Sex, Age, Beck, Vocabulary, Digit_symbol, Non_word_span, Non_word_sum, Moca, MST_rec_score, MST_ldi, exercise_regular, alcohol_regular, caffeine_regular) %>% #PALT_best_performance_trial, PALT_best_performance_score,
+  gather(questionnaire, result, -ID, -AgeGroup, -Sex, -Age) %>% 
+  filter(questionnaire != 'Moca') %>%
+  unique() %>% drop_na() %>% 
+  ggplot(aes(x = factor(AgeGroup, levels= c("OA", "YA"), labels=c("Old Adults", "Young Adults")), y = as.numeric(result))) +
+    geom_violin(aes(fill = AgeGroup)) +
+    geom_boxplot(aes(fill = AgeGroup), width=0.2) +
+    geom_point(position = position_jitter(), size = 2.5) +
+    facet_wrap(~questionnaire, ncol = 5, scales = "free", labeller = labeller(questionnaire = c("Non_word_sum"="Non-word repetition raw score",
+                                                                                      "Non_word_span" = "Non-word repetition span",
+                                                                                      "Beck" = "Beck Depression Score",
+                                                                                      "Digit_symbol" = "Digit-Symbol",
+                                                                                      "MST_ldi" = "LDI in MST",
+                                                                                      "MST_rec_score" = "Recognition in MST",
+                                                                                      #"PALT_best_performance_score" = "Best Paired-Associates Score",
+                                                                                      #"PALT_best_performance_trial" = "Best Paired-Associte Round",
+                                                                                      "Vocabulary" = "Vocabulary",
+                                                                                      "exercise_regular" = "Exercise hours regularly",
+                                                                                      "alcohol_regular" = "Regular alcohol consumption",
+                                                                                      "caffeine_regular" = "Regular coffee consumption",
+                                                                                      "Moca" = "MOCA score"))) +
+    custom_theme +
+    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
+    labs(title = "Results of subject-level covariates", x = "Age Groups", y = "Scores of different covariate tests", color = "ID of Participants") +
+    scale_fill_brewer(palette="Paired") + 
+    theme(legend.position = "none") 
 
 ```
 
+
+### Figure 4 - GLMEM results
+
+Estimates - simple
+
 ```{r}
 
-summary(model_simple_cont_only)
+plot_model(model_simple, type = "est", transform = "exp", terms = c("(Intercept)",
+                                                                                "AgeGroupOA",
+                                                                                "stimtype_RECCLOSE",
+                                                                                "stimtype_RECDISTANT",
+                                                                                "stimtype_RECTARG",
+                                                                                "stimtype_RECCLOSE:AgeGroupOA",
+                                                                                "stimtype_RECDISTANT:AgeGroupOA",
+                                                                                "stimtype_RECTARG:AgeGroupOA"
+                                                                            ), 
+           colors = c("seagreen3", "deepskyblue2"), 
+           show.values = TRUE,
+           value.offset = .4,
+           value.size = 6,
+           dot.size = 6,
+           line.size = 2.5,
+           vline.color = "red",
+           width = 0.5,
+           wrap.labels = 70,
+           axis.labels = c("Age Group * Distant Lure", "Age Group * Close Lure", "Age Group * Target", "Old Adults", "Distant Lure", "Close Lure", "Target", "Intercept (Foil)"),
+           axis.title = c("Exponentiated estimates", "x"),
+           title = "Simple model",
+           order.terms = c(4,6,3,5,1,2),
+           group.terms = c(1,1,2,3,2,3),
+           show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=1, size = 15, face="bold"))
 
-# OR
-broom.mixed::tidy(model_simple_cont_only, conf.int = TRUE, exponentiate = TRUE)
+```
+
+Estimates - complex
+
+```{r}
+
+plot_model(model_complex_participants_cognitive_health, type = "est", transform = "exp", terms = c("(Intercept)",
+                                                                                "AgeGroupOA",
+                                                                                "stimtype_RECTARG",
+                                                                                "stimtype_RECCLOSE",
+                                                                                "stimtype_RECDISTANT",
+                                                                                "stimtype_RECTARG:AgeGroupOA",
+                                                                                "stimtype_RECCLOSE:AgeGroupOA",
+                                                                                "stimtype_RECDISTANT:AgeGroupOA",
+                                                                                "AgeGroupYA:MST_ldi_scale",
+                                                                                "AgeGroupYA:Digit_symbol_scale",
+                                                                                "AgeGroupOA:Non_word_sum_scale",
+                                                                                "stimtype_RECFOIL:noun_freq_log_scale",
+                                                                                "stimtype_RECTARG:noun_freq_log_scale",
+                                                                                "stimtype_RECCLOSE:AgeGroupOA:ya_konk_mean_scale",
+                                                                                "stimtype_RECCLOSE:AgeGroupYA:ya_konk_mean_scale",
+                                                                                "stimtype_RECDISTANT:AgeGroupYA:ya_konk_mean_scale"), 
+           colors = c("seagreen3", "deepskyblue2", "orchid"), 
+           show.values = TRUE,
+           value.offset = .4,
+           value.size = 6,
+           dot.size = 6,
+           line.size = 2.5,
+           vline.color = "red",
+           wrap.labels = 70,
+           width = 0.5,
+           axis.title = c("Exponentiated estimates", "x"),
+           axis.labels = c("Close Lure * Old Adults * YA concreteness score",
+                           "Distant Lure * Young Adults * YA concreteness score", 
+                           "Close Lure * Young Adults * YA concreteness score",
+                           "Target * Noun frequency", 
+                           "Foil * Noun frequency", 
+                           "Young adults * LDI in MST",
+                           "Old adults * Non-word repetition", 
+                           "Young adults * Processing speed", 
+                           "Age Group * Distant Lure", 
+                           "Age Group * Close Lure", 
+                           "Age Group * Target", 
+                           "Old adult", 
+                           "Distant Lure", 
+                           "Close Lure", 
+                           "Target", 
+                           "Intercept (Foil)"),
+           title = "Complex model",
+           order.terms = c(4,6,3,5,1,2),
+           group.terms = c(1,1,2,3,2,3),
+           show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=1, size = 15, face="bold"))
+
+```
+
+Continous GLMEM
+
+```{r}
 
 # In this plot, we will only include sex and ticket price as predictors.
 semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
+  mutate(response_REC = ifelse(response_REC == "old", 1, 0)) %>%
   filter(stimtype_REC != "FOIL") %>% 
   ggplot() +
     aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
     #geom_point() +
     geom_smooth(method = "glm", 
                 method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1), xlim = c(1,0.4)) +
+    coord_cartesian(ylim = c(0, 1), xlim = c(0.4,1)) +
     scale_y_continuous(labels = scales::percent_format()) +
     custom_theme +
-    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Cosine Similarity")
-
-# Evaluating model
-r2(model_complex_participants_cognitive_optimal)
+    labs(title = "Continous GLMEM model plotted", y = "Percentage of 'old' responses", x = "Cosine Similarity")
 
 ```
 
-```{r}
-
-summary(model_complex_cont_only)
-
-# OR
-broom.mixed::tidy(model_complex_cont_only, conf.int = TRUE, exponentiate = TRUE)
-
-# In this plot, we will only include sex and ticket price as predictors.
-semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
-  filter(stimtype_REC != "FOIL") %>% 
-  ggplot() +
-    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
-    #geom_point() +
-    geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1), xlim = c(1,0.4)) +
-    scale_y_continuous(labels = scales::percent_format()) +
-    custom_theme +
-    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Cosine Similarity")
-
-# Evaluating model
-r2(model_complex_cont_only)
-
-```
-
-
-## Further Analysis (2023 february)
-
-### ANOVA with D'a (Loiotile, 2015)
+Effects?
 
 ```{r}
 
-# z(H) = z(F) + d'
-## z(F) = z(P("old"|lure))
-## z(F) = z(P("new"|lure))
-## d' = z(H) - z(F)
-
-# Plot the zROC curves
-# Load the pROC and stats libraries
-library(pROC)
-library(stats)
-
-# Generate sample data for classification
-zROC_table = semmst_data_final_clean %>% select(ID, response_REC, stimtype_REC, AgeGroup)
-zROC_table_long = zROC_table %>% 
-  filter(stimtype_REC != "FOIL") %>% 
-  mutate(response_REC = as.numeric(response_REC == "new")) %>% 
-  spread(stimtype_REC, response_REC, -c(ID,AgeGroup))
-zROC_list <- split(zROC_table, zROC_table$stimtype_REC)
-
-# Calculate the ROC curve
-roc_obj <- roc(true_labels, predicted_probs)
-
-# Calculate the z-ROC curve
-fpr <- 1 - specificity(roc_obj)
-tpr <- sensitivity(roc_obj)
-z_fpr <- qnorm(fpr)
-z_tpr <- qnorm(tpr)
-
-# Plot the z-ROC curve
-plot(z_fpr, z_tpr, type = "l")
-abline(0, 1, col = "red")
-
-```
-
-### Word control - median splits
-
-Base
-
-```{r}
-word_control_base = semmst_data_final_clean %>% 
-  select(ID, AgeGroup, stimtype_REC, response_REC, reaction_time_REC, ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean) %>% 
-  mutate(across(c(ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean), 
-                ~ case_when(. >= median(.) ~ "upper",
-                             . < median(.) ~ "lower")))
-
-word_control_ID = word_control_base %>% 
-  select(ID, AgeGroup) %>%  distinct()
-
-```
-
-Young adults
-
-```{r}
-word_control_ya = word_control_base %>%
-  filter(reaction_time_REC <= 3) %>% 
-  count(ID, AgeGroup, stimtype_REC, response_REC, ya_ert_mean) %>% 
-  unite("stim_resp", c("stimtype_REC", "response_REC", "ya_ert_mean"), sep = "_") %>% 
-  spread(stim_resp, n) %>% 
-  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
-  mutate(targ_n_upper = TARG_new_upper + TARG_old_upper) %>% 
-  mutate(close_n_upper = CLOSE_new_upper + CLOSE_old_upper) %>% 
-  mutate(distant_n_upper = DISTANT_new_upper + DISTANT_old_upper) %>% 
-  mutate(foil_n_upper = FOIL_new_upper + FOIL_old_upper) %>% 
-  mutate(targ_n_lower = TARG_new_lower + TARG_old_lower) %>% 
-  mutate(close_n_lower = CLOSE_new_lower + CLOSE_old_lower) %>% 
-  mutate(distant_n_lower = DISTANT_new_lower + DISTANT_old_lower) %>% 
-  mutate(foil_n_lower = FOIL_new_lower + FOIL_old_lower)
-
-
-
-### UPPER
-# Simple recognition - TARG vs FOIL  
-rec_dprime_upper <- psycho::dprime(
-  n_hit = word_control_ya$TARG_old_upper,
-  n_fa = word_control_ya$FOIL_old_upper,
-  n_miss = word_control_ya$TARG_new_upper,
-  n_cr = word_control_ya$FOIL_new_upper,
-  n_targets = word_control_ya$targ_n_upper,
-  n_distractors = word_control_ya$foil_n_upper,
-  adjusted = TRUE
-)
-
-# Close lure discrimination - TARG vs CLOSE  
-close_dprime_upper <- psycho::dprime(
-  n_hit = word_control_ya$TARG_old_upper,
-  n_fa = word_control_ya$CLOSE_old_upper,
-  n_miss = word_control_ya$TARG_new_upper,
-  n_cr = word_control_ya$CLOSE_new_upper,
-  n_targets = word_control_ya$targ_n_upper,
-  n_distractors = word_control_ya$close_n_upper,
-  adjusted = TRUE
-)
-
-# Distant lure discrimination - TARG vs DISTANT  
-dist_dprime_upper <- psycho::dprime(
-  n_hit = word_control_ya$TARG_old_upper,
-  n_fa = word_control_ya$DISTANT_old_upper,
-  n_miss = word_control_ya$TARG_new_upper,
-  n_cr = word_control_ya$DISTANT_new_upper,
-  n_targets = word_control_ya$targ_n_upper,
-  n_distractors = word_control_ya$distant_n_upper,
-  adjusted = TRUE
-)
-### LOWER
-# Simple recognition - TARG vs FOIL  
-rec_dprime_lower <- psycho::dprime(
-  n_hit = word_control_ya$TARG_old_lower,
-  n_fa = word_control_ya$FOIL_old_lower,
-  n_miss = word_control_ya$TARG_new_lower,
-  n_cr = word_control_ya$FOIL_new_lower,
-  n_targets = word_control_ya$targ_n_lower,
-  n_distractors = word_control_ya$foil_n_lower,
-  adjusted = TRUE
-)
-
-# Close lure discrimination - TARG vs CLOSE  
-close_dprime_lower <- psycho::dprime(
-  n_hit = word_control_ya$TARG_old_lower,
-  n_fa = word_control_ya$CLOSE_old_lower,
-  n_miss = word_control_ya$TARG_new_lower,
-  n_cr = word_control_ya$CLOSE_new_lower,
-  n_targets = word_control_ya$targ_n_lower,
-  n_distractors = word_control_ya$close_n_lower,
-  adjusted = TRUE
-)
-
-# Distant lure discrimination - TARG vs DISTANT  
-dist_dprime_lower <- psycho::dprime(
-  n_hit = word_control_ya$TARG_old_lower,
-  n_fa = word_control_ya$DISTANT_old_lower,
-  n_miss = word_control_ya$TARG_new_lower,
-  n_cr = word_control_ya$DISTANT_new_lower,
-  n_targets = word_control_ya$targ_n_lower,
-  n_distractors = word_control_ya$distant_n_lower,
-  adjusted = TRUE
-)
-
-# Dprime dataframe - longformat
-dprimes_table_wide_ert_ya <- data.frame(word_control_ID$ID, word_control_ID$AgeGroup, rec_dprime_upper$dprime, close_dprime_upper$dprime, dist_dprime_upper$dprime, rec_dprime_lower$dprime, close_dprime_lower$dprime, dist_dprime_lower$dprime) %>% 
-  as_tibble() %>%
-  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime_upper", "close_dprime_upper", "distant_dprime_upper", "rec_dprime_lower", "close_dprime_lower", "distant_dprime_lower"))
-  
-dprimes_table_ert_ya = dprimes_table_wide_ert_ya %>% 
-  gather("type", "dprime", -c(ID,AgeGroup)) %>% 
-  mutate(type = str_replace(type, pattern = "_dprime_", replacement = "_")) %>% 
-  separate(type, c("stimtype", "erttype"))
-  
-model_anova_ya_ert <- aov(dprime ~ AgeGroup * stimtype * erttype, data = dprimes_table_ert_ya)
-summary(model_anova_ya_ert)
-# AgeGroup significant: F = 52.877; p < 0.001 
-# stimtype significant: F = 35.598; p < 0.001
-# errtype not significant: F = 0.726; p = 0.394
-# AgeGroup:erttype significant: F = 8.124  p = 0.00456 
-
-library(jtools)
-library(interactions)
-model_anova_ya_ert %>% 
-  ggplot(aes(erttype, dprime)) +
-  geom_line(size = 1.2, aes(group = AgeGroup, color = AgeGroup)) +
-  geom_point(size = 2.6, aes(color = AgeGroup), shape = 15)
-
-```
-
-Old adults
-
-```{r}
-
-word_control_oa = word_control_base %>%
-  filter(reaction_time_REC <= 3) %>% 
-  count(ID, AgeGroup, stimtype_REC, response_REC, oa_ert_mean) %>% 
-  unite("stim_resp", c("stimtype_REC", "response_REC", "oa_ert_mean"), sep = "_") %>% 
-  spread(stim_resp, n) %>% 
-  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
-  mutate(targ_n_upper = TARG_new_upper + TARG_old_upper) %>% 
-  mutate(close_n_upper = CLOSE_new_upper + CLOSE_old_upper) %>% 
-  mutate(distant_n_upper = DISTANT_new_upper + DISTANT_old_upper) %>% 
-  mutate(foil_n_upper = FOIL_new_upper + FOIL_old_upper) %>% 
-  mutate(targ_n_lower = TARG_new_lower + TARG_old_lower) %>% 
-  mutate(close_n_lower = CLOSE_new_lower + CLOSE_old_lower) %>% 
-  mutate(distant_n_lower = DISTANT_new_lower + DISTANT_old_lower) %>% 
-  mutate(foil_n_lower = FOIL_new_lower + FOIL_old_lower)
-
-
-
-### UPPER
-# Simple recognition - TARG vs FOIL  
-rec_dprime_upper <- psycho::dprime(
-  n_hit = word_control_oa$TARG_old_upper,
-  n_fa = word_control_oa$FOIL_old_upper,
-  n_miss = word_control_oa$TARG_new_upper,
-  n_cr = word_control_oa$FOIL_new_upper,
-  n_targets = word_control_oa$targ_n_upper,
-  n_distractors = word_control_oa$foil_n_upper,
-  adjusted = TRUE
-)
-
-# Close lure discrimination - TARG vs CLOSE  
-close_dprime_upper <- psycho::dprime(
-  n_hit = word_control_oa$TARG_old_upper,
-  n_fa = word_control_oa$CLOSE_old_upper,
-  n_miss = word_control_oa$TARG_new_upper,
-  n_cr = word_control_oa$CLOSE_new_upper,
-  n_targets = word_control_oa$targ_n_upper,
-  n_distractors = word_control_oa$close_n_upper,
-  adjusted = TRUE
-)
-
-# Distant lure discrimination - TARG vs DISTANT  
-dist_dprime_upper <- psycho::dprime(
-  n_hit = word_control_oa$TARG_old_upper,
-  n_fa = word_control_oa$DISTANT_old_upper,
-  n_miss = word_control_oa$TARG_new_upper,
-  n_cr = word_control_oa$DISTANT_new_upper,
-  n_targets = word_control_oa$targ_n_upper,
-  n_distractors = word_control_oa$distant_n_upper,
-  adjusted = TRUE
-)
-### LOWER
-# Simple recognition - TARG vs FOIL  
-rec_dprime_lower <- psycho::dprime(
-  n_hit = word_control_oa$TARG_old_lower,
-  n_fa = word_control_oa$FOIL_old_lower,
-  n_miss = word_control_oa$TARG_new_lower,
-  n_cr = word_control_oa$FOIL_new_lower,
-  n_targets = word_control_oa$targ_n_lower,
-  n_distractors = word_control_oa$foil_n_lower,
-  adjusted = TRUE
-)
-
-# Close lure discrimination - TARG vs CLOSE  
-close_dprime_lower <- psycho::dprime(
-  n_hit = word_control_oa$TARG_old_lower,
-  n_fa = word_control_oa$CLOSE_old_lower,
-  n_miss = word_control_oa$TARG_new_lower,
-  n_cr = word_control_oa$CLOSE_new_lower,
-  n_targets = word_control_oa$targ_n_lower,
-  n_distractors = word_control_oa$close_n_lower,
-  adjusted = TRUE
-)
-
-# Distant lure discrimination - TARG vs DISTANT  
-dist_dprime_lower <- psycho::dprime(
-  n_hit = word_control_oa$TARG_old_lower,
-  n_fa = word_control_oa$DISTANT_old_lower,
-  n_miss = word_control_oa$TARG_new_lower,
-  n_cr = word_control_oa$DISTANT_new_lower,
-  n_targets = word_control_oa$targ_n_lower,
-  n_distractors = word_control_oa$distant_n_lower,
-  adjusted = TRUE
-)
-
-# Dprime dataframe - longformat
-dprimes_table_wide_ert_oa <- data.frame(word_control_ID$ID, word_control_ID$AgeGroup, rec_dprime_upper$dprime, close_dprime_upper$dprime, dist_dprime_upper$dprime, rec_dprime_lower$dprime, close_dprime_lower$dprime, dist_dprime_lower$dprime) %>% 
-  as_tibble() %>%
-  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime_upper", "close_dprime_upper", "distant_dprime_upper", "rec_dprime_lower", "close_dprime_lower", "distant_dprime_lower"))
-  
-dprimes_table_ert_oa = dprimes_table_wide_ert_oa %>% 
-  gather("type", "dprime", -c(ID,AgeGroup)) %>% 
-  mutate(type = str_replace(type, pattern = "_dprime_", replacement = "_")) %>% 
-  separate(type, c("stimtype", "erttype"))
-  
-model_anova_oa_ert <- aov(dprime ~ AgeGroup * stimtype * erttype, data = dprimes_table_ert_oa)
-summary(model_anova_oa_ert)
-# AgeGroup significant: F = 56.480; p < 0.001 
-# stimtype significant: F = 33.18; p < 0.001
-# errtype not significant: F = 3.731; p = 0.054
-# AgeGroup:erttype not significant: F = 3.206  p = 0.074
-
-model_anova_oa_ert %>% 
-  ggplot(aes(erttype, dprime)) +
-  geom_line(size = 1.2, aes(group = AgeGroup, color = AgeGroup)) +
-  geom_point(size = 2.6, aes(color = AgeGroup), shape = 15)
 
 ```
 
 
 
-### Correlations with cognitive controls
+### Figure 5 - MST correlation
 
-MST - sMST correlation
-
-```{r}
-# D-prime for lures binned together
-
-
-
-
-```
-
+Correlation FINAL
 
 ```{r}
-library(smplot2)
 
-# MST - smst LDI correlation
-cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$close_dprime)
-cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$distant_dprime)
-cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$lure_dprime)
-
-# MST - smst REC dprime
-cor.test(semmst_data_final_clean$MST_rec_score, semmst_data_final_clean$rec_dprime)
-
-semmst_data_final_clean %>% 
-  filter(MST_rec_score > 0.4) %>%
-  ggplot(mapping = aes(x = MST_rec_score, y = rec_dprime, fill = AgeGroup, colour = AgeGroup)) +
-    geom_point(shape = 21, color = 'white', size = 4) +
-    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
-    sm_statCorr(fit.params = list(color = 'black',
-                                   linetype = 'dashed'), text_size = 10) +
-    custom_theme +
-    labs(x = "Recognition score in MST", y = "D-prime scores of targ. vs. foils - discriminability", title = "Correlation of dprimes in our main task\nand the recognition scores in the original MST") +
-    theme(legend.position = "right") + guides(colour = FALSE)
-
-# MST - smst CLOSE dprime
-semmst_data_final_clean %>% 
-  #filter(MST_rec_score > 0.4) %>%
-  ggplot(mapping = aes(x = MST_ldi, y = close_dprime, fill = AgeGroup, colour = AgeGroup)) +
-    geom_point(shape = 21, color = 'white', size = 4) +
-    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
-    sm_statCorr(fit.params = list(color = 'black',
-                                   linetype = 'dashed'), text_size = 10) +
-    custom_theme +
-    labs(x = "Recognition score in MST", y = "D-prime scores of targ. vs. close lures - discriminability", title = "Correlation of dprimes in our main task\nand the LDI scores in the original MST") +
-    theme(legend.position = "right") + guides(colour = FALSE)
-
-# MST - smst DISTANT dprime
-semmst_data_final_clean %>% 
-  #filter(MST_rec_score > 0.4) %>%
-  ggplot(mapping = aes(x = MST_ldi, y = distant_dprime, fill = AgeGroup, colour = AgeGroup)) +
-    geom_point(shape = 21, color = 'white', size = 4) +
-    scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
-    sm_statCorr(fit.params = list(color = 'black',
-                                   linetype = 'dashed'), text_size = 10) +
-    custom_theme +
-    labs(x = "Recognition score in MST", y = "D-prime scores of targ. vs. distant lures - discriminability", title = "Correlation of dprimes in our main task\nand the LDI scores in the original MST") +
-    theme(legend.position = "right") + guides(colour = FALSE)
-
-# MST - LURE vs REC
 semmst_data_final %>% 
-  #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
     scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
     sm_statCorr(fit.params = list(color = 'black',
                                    linetype = 'dashed'), text_size = 10) +
     custom_theme +
-    labs(x = "Lure Discrimination Index in MST", y = "D-prime scores of targ. vs. all lures - discriminability", title = "Correlation of dprimes in the sMST\nand the LDI scores in the original MST") +
+    labs(x = "MST LDI", y = "sMST - Lure D'", title = "Correlation of dprimes in the sMST\nand the LDI scores in the original MST") +
     theme(legend.position = "none") + guides(colour = FALSE)
-
-### Correlation matrices
-#### COGNITIVE
-semmst_data_final_clean %>% 
-  select(c(ID, AgeGroup, rec_dprime, MST_ldi, Beck, Vocabulary, Digit_symbol, Non_word_span)) %>% 
-  unique() %>%
-  grouped_ggcorrmat(
-    type         = "robust",
-    colors       = c("#cbac43", "white", "#550000"),
-    grouping.var = AgeGroup,
-    matrix.type  = "lower"
-  )
-#### HEALTH
-semmst_data_final_clean %>% 
-  select(c(ID, AgeGroup, rec_dprime, sedentary_regular, exercise_regular, sleep_regular, caffeine_regular, alcohol_regular)) %>% 
-  unique() %>%
-  mutate(across(exercise_regular:alcohol_regular, as.numeric)) %>% 
-  grouped_ggcorrmat(
-    type         = "robust",
-    colors       = c("#cbac43", "white", "#550000"),
-    grouping.var = AgeGroup,
-    matrix.type  = "lower"
-  )
-
-### WORD
-semmst_data_final_clean %>% 
-  select(c(stimtype_REC, adjective_REC, noun, ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean, noun_freq, adj_freq)) %>%
-  distinct() %>%
-  mutate(across(ya_ert_mean:adj_freq, as.numeric)) %>% 
-  ggcorrmat(
-    type         = "robust",
-    colors       = c("#cbac43", "white", "#550000"),
-    #grouping.var = stimtype_REC,
-    matrix.type  = "lower"
-  )
-
-```
-
-### Encoding data ANOVA
-
-```{r}
-# accuracy based on enc responses
-accuracy_table_enc_resp = semmst_data_final_clean %>% 
-  filter(response_ENC == "good" | response_ENC == "no-good") %>%
-  group_by(AgeGroup, ID, response_ENC, stimtype_REC, correctness) %>%
-  summarise(cnt = n()) %>% 
-  mutate(percent_correct=cnt/sum(cnt)) %>% 
-  filter(correctness == 1) %>% 
-  arrange(desc(percent_correct))
-
-# T-test and mean(SD)
-t.test(percent_correct ~ response_ENC, data = accuracy_table_enc_resp)
-
-accuracy_table_enc_resp %>% group_by(response_ENC) %>% 
-  summarise(resp_rate = mean(percent_correct), resp_sd = sd(percent_correct))
-
-# ANOVA
-accuracy_table_enc_resp %>%
-  group_by(stimtype_REC)%>% 
-  levene_test(percent_correct ~ as.factor(AgeGroup))
-
-model_anova_accenc <- aov(percent_correct ~  response_ENC * AgeGroup, data = accuracy_table_enc_resp)
-
-summary(model_anova_accenc)
-
-```
-
-### Confidence
-
-```{r}
-
-
-
-```
-
-
-
-# Playground
-
-
-## Follow-up email
-
-```{r}
-
-paper_pencil_data_wide_merge %>%
-  gather(questionnaire, result, -ID, -AgeGroup, -Nem, -Kor) %>% 
-  filter(questionnaire != 'Moca') %>%
-  filter(questionnaire == 'Szókincs') %>%
-  ggplot(aes(x = factor(AgeGroup, levels= c("OA", "YA"), labels=c("Idős felnőttek", "Fiatal felnőttek")), y = as.numeric(result))) +
-    geom_violin(aes(fill = AgeGroup)) +
-    geom_boxplot(aes(fill = AgeGroup), width=0.2) +
-    geom_point(position = position_jitter(), size = 2.5) +
-    custom_theme +
-    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
-    labs(title = "2. ábra -\n Szókincs teszt", x = "Korcsoportok", y = "Ismert szavak és kifejezések száma") +
-    scale_fill_brewer(palette="Dark2") + 
-    theme(legend.position = "none") 
-
-```
-
-
-## RDM
-
-```{r}
-smst_stim_list %>%
-  select(stim_type, noun, cosine_metric)
-
-
-```
-
-
-## Tomi
-
-```{r}
-
-semmst_data_final_clean %>% 
-  filter(AgeGroup == "YA") %>% 
-  ggplot(aes(x = sleep_24h, y = rec_dprime)) +
-    geom_point(alpha = 0.5) +
-    geom_smooth()
-    
-
-```
-
-## CLOSE * AgeGroup * Concreteness
-
-```{r}
-
-semmst_data_final_clean %>%
-  select(adjective_REC, noun, AgeGroup, stimtype_REC, response_REC, oa_konk_mean, ya_konk_mean) %>%
-  group_by(AgeGroup, stimtype_REC, response_REC, noun) %>% 
-  mutate(n = n()) %>% 
-  ungroup() %>% 
-  distinct() %>% 
-  complete(nesting(AgeGroup), 
-           nesting(stimtype_REC, noun, response_REC),
-           fill = list(n = 0)) %>%
-  group_by(AgeGroup, stimtype_REC, noun) %>%
-  mutate(response_rate=n/sum(n)) %>% 
-  ungroup() %>% 
-  group_by(stimtype_REC, noun) %>%
-  filter(response_REC == "old") %>% arrange(noun) %>% 
-  fill(oa_konk_mean, ya_konk_mean) %>% 
-  gather("age_group_metric", "concreteness", 6:7) %>% 
-  ggplot(aes(x = concreteness, y = response_rate, fill = stimtype_REC)) +
-    geom_point() +
-    geom_smooth() +
-    facet_grid(AgeGroup ~ age_group_metric)
-    
-  
-
-```
-
-## Old rate - sem sim
-
-```{r}
-
-semmst_data_final_clean %>%
-  select(adjective_REC, noun, AgeGroup, stimtype_REC, response_REC, cosine_metric) %>%
-  group_by(AgeGroup, stimtype_REC, response_REC, noun) %>% 
-  mutate(n = n()) %>% 
-  ungroup() %>% 
-  distinct() %>% 
-  complete(nesting(AgeGroup), 
-           nesting(stimtype_REC, noun, adjective_REC, response_REC, cosine_metric),
-           fill = list(n = 0)) %>%
-  group_by(AgeGroup, stimtype_REC, noun) %>%
-  mutate(response_rate=n/sum(n)) %>% 
-  ungroup() %>% 
-  group_by(stimtype_REC, noun) %>%
-  filter(response_REC == "old") %>% arrange(noun) %>% 
-  filter(AgeGroup == "YA") %>% 
-  filter(stimtype_REC == "CLOSE") %>%  
-  fill(cosine_metric) %>% print(n = 900) %>% 
-  ggplot(aes(x = cosine_metric, y = response_rate)) +
-    geom_point(size = 6, colour = "#4472C4", alpha = 0.75) +
-    geom_smooth(method= "lm", colour = "#5A5A5A", size = 1.2) +
-    custom_theme +
-    #ggtitle("False alarms to verbal similar lures based on \n semantic similarity in word2vec by 40 young adults") +
-    xlab("Semantic similarity") + ylab("False alarm rate") +
-    scale_y_continuous(labels = scales::percent)
-    #facet_wrap(~AgeGroup)
-  
 
 ```
 
