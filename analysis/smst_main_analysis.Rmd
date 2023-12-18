@@ -208,8 +208,6 @@ health_data = read_excel("data/D_PencilPaper/papir_ceruza_logs.xlsx", sheet = 2)
   rename(ID = Kód) %>% 
   select(-Korosztály) 
 
-
-
 ```
 
 ## Create D-prime dataframe for ANOVA
@@ -226,6 +224,18 @@ semmst_data_rec_wide_dprime = semmst_data_rec %>%
   mutate(targ_n = TARG_new + TARG_old) %>% 
   mutate(close_n = CLOSE_new + CLOSE_old) %>% 
   mutate(distant_n = DISTANT_new + DISTANT_old) %>% 
+  mutate(foil_n = FOIL_new + FOIL_old)
+
+semmst_data_rec_wide_dprime_lurebinned = semmst_data_rec  %>%
+  filter(reaction_time <= 3) %>% 
+  filter(response != "None" & response != "4") %>%
+  mutate(stimtype = recode(stimtype, 'CLOSE' = 'LURE', 'DISTANT' = 'LURE')) %>% 
+  count(ID, AgeGroup, stimtype, response) %>% 
+  unite("stim_resp", c("stimtype", "response"), sep = "_") %>% 
+  spread(stim_resp, n) %>% 
+  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
+  mutate(targ_n = TARG_new + TARG_old) %>% 
+  mutate(lure_n = LURE_new + LURE_old) %>% 
   mutate(foil_n = FOIL_new + FOIL_old)
 
 # Simple recognition - TARG vs FOIL  
@@ -261,42 +271,7 @@ dist_dprime <- psycho::dprime(
   adjusted = TRUE
 )
 
-# Dprime dataframe - longformat
-dprimes_table_wide <- data.frame(semmst_data_rec_wide_dprime$ID, semmst_data_rec_wide_dprime$AgeGroup, rec_dprime$dprime, close_dprime$dprime, dist_dprime$dprime) %>% 
-  as_tibble() %>%
-  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime", "close_dprime", "distant_dprime"))
-  
-dprimes_table = dprimes_table_wide %>% 
-  gather("type", "dprime", -c(ID,AgeGroup))
-
-```
-
-Lures binned as one
-
-```{r}
-
-semmst_data_rec_wide_dprime_lurebinned = semmst_data_final_clean  %>%
-  mutate(stimtype_REC = recode(stimtype_REC, 'CLOSE' = 'LURE', 'DISTANT' = 'LURE')) %>% 
-  count(ID, AgeGroup, stimtype_REC, response_REC) %>% 
-  unite("stim_resp", c("stimtype_REC", "response_REC"), sep = "_") %>% 
-  spread(stim_resp, n) %>% 
-  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
-  mutate(targ_n = TARG_new + TARG_old) %>% 
-  mutate(lure_n = LURE_new + LURE_old) %>% 
-  mutate(foil_n = FOIL_new + FOIL_old)
-
-# Simple recognition - TARG vs FOIL  
-rec_dprime <- psycho::dprime(
-  n_hit = semmst_data_rec_wide_dprime_lurebinned$TARG_old,
-  n_fa = semmst_data_rec_wide_dprime_lurebinned$FOIL_old,
-  n_miss = semmst_data_rec_wide_dprime_lurebinned$TARG_new,
-  n_cr = semmst_data_rec_wide_dprime_lurebinned$FOIL_new,
-  n_targets = semmst_data_rec_wide_dprime_lurebinned$targ_n,
-  n_distractors = semmst_data_rec_wide_dprime_lurebinned$foil_n,
-  adjusted = TRUE
-)
-
-# Close lure discrimination - TARG vs LURE  
+# Lure discrimination - TARG vs LURE  
 lure_dprime <- psycho::dprime(
   n_hit = semmst_data_rec_wide_dprime_lurebinned$TARG_old,
   n_fa = semmst_data_rec_wide_dprime_lurebinned$LURE_old,
@@ -307,13 +282,12 @@ lure_dprime <- psycho::dprime(
   adjusted = TRUE
 )
 
-
 # Dprime dataframe - longformat
-dprimes_table_wide_lurebinned <- data.frame(semmst_data_rec_wide_dprime$ID, semmst_data_rec_wide_dprime$AgeGroup, rec_dprime$dprime, lure_dprime$dprime) %>% 
+dprimes_table_wide <- data.frame(semmst_data_rec_wide_dprime$ID, semmst_data_rec_wide_dprime$AgeGroup, rec_dprime$dprime, close_dprime$dprime, dist_dprime$dprime, lure_dprime$dprime) %>% 
   as_tibble() %>%
-  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime", "lure_dprime"))
+  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime", "close_dprime", "distant_dprime", "lure_dprime"))
   
-dprimes_table_lurebinned = dprimes_table_wide_lurebinned %>% 
+dprimes_table = dprimes_table_wide %>% 
   gather("type", "dprime", -c(ID,AgeGroup))
 
 ```
@@ -365,7 +339,7 @@ heatlh_sum = health_data %>%
   
 
 ### FINAL MERGE
-semmst_data_final = Reduce(function(x, y) merge(x, y, all=TRUE), list(semmst_data_wider_cosine, mst_sum, nback_sum, palt_sum, heatlh_sum, dprimes_table_wide_lurebinned, dprimes_table_wide))
+semmst_data_final = Reduce(function(x, y) merge(x, y, all=TRUE), list(semmst_data_wider_cosine, mst_sum, nback_sum, palt_sum, heatlh_sum, dprimes_table_wide))
 
 ```
 
@@ -1937,15 +1911,30 @@ MST - sMST correlation
 
 ```{r}
 
-# MST - smst LDI correlation
-cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$close_dprime)
-cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$distant_dprime)
-cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$lure_dprime)
+# Fixed correlations with only one datapoint per participant
+semmst_data_final_clean_youngcorr = semmst_data_final_clean %>% 
+  filter(AgeGroup == "YA") %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct()
+semmst_data_final_clean_oldcorr = semmst_data_final_clean %>% 
+  filter(AgeGroup == "OA") %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct()
+
+cor.test(semmst_data_final_clean_youngcorr$MST_ldi, semmst_data_final_clean_youngcorr$lure_dprime) # YOUNG
+cor.test(semmst_data_final_clean_oldcorr$MST_ldi, semmst_data_final_clean_oldcorr$lure_dprime) # OLD
+
+```
+
+
+```{r}
 
 # MST - smst REC dprime
 cor.test(semmst_data_final_clean$MST_rec_score, semmst_data_final_clean$rec_dprime)
 
 semmst_data_final_clean %>% 
+  select(ID, AgeGroup, MST_rec_score, rec_dprime) %>% 
+  distinct() %>% 
   filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_rec_score, y = rec_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -1958,6 +1947,8 @@ semmst_data_final_clean %>%
 
 # MST - smst CLOSE dprime
 semmst_data_final_clean %>% 
+  select(ID, AgeGroup, MST_ldi, close_dprime) %>% 
+  distinct() %>% 
   #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = close_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -1970,6 +1961,8 @@ semmst_data_final_clean %>%
 
 # MST - smst DISTANT dprime
 semmst_data_final_clean %>% 
+  select(ID, AgeGroup, MST_ldi, distant_dprime) %>% 
+  distinct() %>% 
   #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = distant_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -1982,6 +1975,8 @@ semmst_data_final_clean %>%
 
 # MST - LURE vs REC
 semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
   #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -3545,12 +3540,14 @@ Correlation FINAL
 
 ```{r}
 
-semmst_data_final %>% 
+semmst_data_final_clean %>%
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
-    geom_point(shape = 21, color = 'white', size = 4) +
+    geom_point(shape = 21, color = 'white', size = 8) +
     scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
     sm_statCorr(fit.params = list(color = 'black',
-                                   linetype = 'dashed'), text_size = 10) +
+                                   linetype = 'dashed'), text_size = 15) +
     custom_theme +
     labs(x = "MST LDI", y = "sMST - Lure D'", title = "Correlation of dprimes in the sMST\nand the LDI scores in the original MST") +
     theme(legend.position = "none") + guides(colour = FALSE)
