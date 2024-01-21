@@ -3306,6 +3306,7 @@ semmst_data_rec_se = semmst_data_rec %>%
   group_by(AgeGroup, ID, stimtype) %>%
   mutate(percentage_id = n/sum(n)) %>%
   group_by(AgeGroup, stimtype, response) %>%
+  filter(response == "old") %>% 
   summarise(se = sd(percentage_id, na.rm=FALSE) / sqrt(length(percentage_id)),
             percentage_id = mean(percentage_id, na.rm=FALSE))
 
@@ -3318,16 +3319,17 @@ semmst_data_rec %>%
   group_by(AgeGroup, ID, stimtype) %>%
   mutate(percentage_id = n/sum(n)) %>%
   ungroup() %>%
-  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None")))) +
+  filter(response == "old") %>% 
+  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")))) +
     geom_bar(stat = "summary", position = position_dodge(width=1)) +
     geom_errorbar(aes(ymin=percentage_id-se, ymax=percentage_id+se, group=factor(response, levels=c("old", "new"))), width=.2,
                  position=position_dodge(1), size=1.5, data = semmst_data_rec_se) +
-    #geom_point(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None"))), position = position_jitterdodge(dodge.width=1, jitter.width = 0.2), size = 3) +
-    labs(x = "Type of stimulus", y = "Percentages of responses", title = "Percentage of responses given for different\n stimulus conditions in the Recognition phase of the SMST task", fill = "Type of\nresponse") +
+    labs(x = "Type of stimulus", y = "Percentage of 'old' response", title = "Percentage of 'old' response given for different\n stimulus conditions in the Recognition phase of the SMST task") +
     scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
     custom_theme +
+    theme(legend.position = "none") +
     facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
-    scale_fill_brewer(palette = "Dark2") +
+    scale_fill_manual(values = c("#4DAF4A", "#306EFF", "#FFEF00", "#E41A1C")) +
     scale_x_discrete(labels=c("TARG" = "TARGET", 
                               "CLOSE" = "CLOSE\nLURE",
                               "DISTANT" = "DISTANT\nLURE",
@@ -3418,6 +3420,43 @@ semmst_data_final_clean %>%
 
 ```
 
+Stimuli covariates
+
+```{r}
+
+smst_stim_list_complex %>% 
+  select(-c(adj_phon, noun_phon)) %>% 
+  gather(covariate, result, -noun, -stimtype_REC) %>%
+  unite("merged", stimtype_REC, covariate, sep ="-") %>% 
+  filter(merged != "CLOSE-noun_freq" & merged != "DISTANT-noun_freq") %>% 
+  filter(merged != "CLOSE-noun_char" & merged != "DISTANT-noun_char") %>% 
+  filter(merged != "CLOSE-noun_syll" & merged != "DISTANT-noun_syll") %>% 
+  separate(merged, c("stimtype_REC", "covariate"), sep="-") %>%
+  ggplot(aes(x = factor(stimtype_REC, levels= c("TARG", "CLOSE", "DISTANT", "FOIL"), labels=c("Targets","Close\nLures", "Distant\nLures", "Foils")), y = as.numeric(result))) +
+    geom_violin(aes(fill = stimtype_REC)) +
+    geom_point(position = position_jitter()) +
+    geom_boxplot(aes(fill = stimtype_REC), width=0.2) +
+    facet_wrap(~covariate, scales = "free", ncol = 3, labeller = labeller(covariate = c("noun_freq"="Noun frequency",
+                                                                              "noun_char" = "Noun characters",
+                                                                              "noun_syll" = "Noun syllables",
+                                                                              "adj_freq" = "Adjective frequency",
+                                                                              "adj_char" = "Adjective characters",
+                                                                              "adj_syll" = "Adjective syllables",
+                                                                              "ya_ert_mean" = "Meaningfulness (30 YA)",
+                                                                              "ya_konk_mean" = "Concreteness (30 YA)",
+                                                                              "ya_aro_mean" = "Arousal (30 YA)",
+                                                                              "oa_ert_mean" = "Meaningfulness (34 OA)",
+                                                                              "oa_konk_mean" = "Concreteness (34 OA)",
+                                                                              "oa_aro_mean" = "Arousal (34 OA)"))) +
+    custom_theme +
+    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
+    labs(title = "Item-level covariates", x = "Stimulus Conditions", y = "Results of different item-level covariates") +
+    #scale_fill_brewer(palette="Dark2") + 
+    scale_fill_manual(values = c("#306EFF", "#FFEF00", "#E41A1C", "#4DAF4A")) +
+    theme(legend.position = "none") 
+
+
+```
 
 ### Figure 4 - GLMEM results
 
@@ -3553,4 +3592,5 @@ semmst_data_final_clean %>%
     theme(legend.position = "none") + guides(colour = FALSE)
 
 ```
+
 
