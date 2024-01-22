@@ -2057,6 +2057,16 @@ summary(model_anova_accenc)
 
 ```
 
+## SUPPLEMENTARY - item covariate t-tests
+
+```{r}
+
+item_covariate_tests = semmst_data_final_clean %>% 
+  select(ID, AgeGroup, stimtype_REC, response_REC, reaction_time_REC, ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean) 
+
+
+```
+
 
 # Plots
 
