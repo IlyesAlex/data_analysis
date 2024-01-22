@@ -208,6 +208,8 @@ health_data = read_excel("data/D_PencilPaper/papir_ceruza_logs.xlsx", sheet = 2)
   rename(ID = Kód) %>% 
   select(-Korosztály) 
 
+
+
 ```
 
 ## Create D-prime dataframe for ANOVA
@@ -224,18 +226,6 @@ semmst_data_rec_wide_dprime = semmst_data_rec %>%
   mutate(targ_n = TARG_new + TARG_old) %>% 
   mutate(close_n = CLOSE_new + CLOSE_old) %>% 
   mutate(distant_n = DISTANT_new + DISTANT_old) %>% 
-  mutate(foil_n = FOIL_new + FOIL_old)
-
-semmst_data_rec_wide_dprime_lurebinned = semmst_data_rec  %>%
-  filter(reaction_time <= 3) %>% 
-  filter(response != "None" & response != "4") %>%
-  mutate(stimtype = recode(stimtype, 'CLOSE' = 'LURE', 'DISTANT' = 'LURE')) %>% 
-  count(ID, AgeGroup, stimtype, response) %>% 
-  unite("stim_resp", c("stimtype", "response"), sep = "_") %>% 
-  spread(stim_resp, n) %>% 
-  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
-  mutate(targ_n = TARG_new + TARG_old) %>% 
-  mutate(lure_n = LURE_new + LURE_old) %>% 
   mutate(foil_n = FOIL_new + FOIL_old)
 
 # Simple recognition - TARG vs FOIL  
@@ -271,7 +261,42 @@ dist_dprime <- psycho::dprime(
   adjusted = TRUE
 )
 
-# Lure discrimination - TARG vs LURE  
+# Dprime dataframe - longformat
+dprimes_table_wide <- data.frame(semmst_data_rec_wide_dprime$ID, semmst_data_rec_wide_dprime$AgeGroup, rec_dprime$dprime, close_dprime$dprime, dist_dprime$dprime) %>% 
+  as_tibble() %>%
+  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime", "close_dprime", "distant_dprime"))
+  
+dprimes_table = dprimes_table_wide %>% 
+  gather("type", "dprime", -c(ID,AgeGroup))
+
+```
+
+Lures binned as one
+
+```{r}
+
+semmst_data_rec_wide_dprime_lurebinned = semmst_data_final_clean  %>%
+  mutate(stimtype_REC = recode(stimtype_REC, 'CLOSE' = 'LURE', 'DISTANT' = 'LURE')) %>% 
+  count(ID, AgeGroup, stimtype_REC, response_REC) %>% 
+  unite("stim_resp", c("stimtype_REC", "response_REC"), sep = "_") %>% 
+  spread(stim_resp, n) %>% 
+  mutate_all(~ifelse(is.na(.), 0, .)) %>% 
+  mutate(targ_n = TARG_new + TARG_old) %>% 
+  mutate(lure_n = LURE_new + LURE_old) %>% 
+  mutate(foil_n = FOIL_new + FOIL_old)
+
+# Simple recognition - TARG vs FOIL  
+rec_dprime <- psycho::dprime(
+  n_hit = semmst_data_rec_wide_dprime_lurebinned$TARG_old,
+  n_fa = semmst_data_rec_wide_dprime_lurebinned$FOIL_old,
+  n_miss = semmst_data_rec_wide_dprime_lurebinned$TARG_new,
+  n_cr = semmst_data_rec_wide_dprime_lurebinned$FOIL_new,
+  n_targets = semmst_data_rec_wide_dprime_lurebinned$targ_n,
+  n_distractors = semmst_data_rec_wide_dprime_lurebinned$foil_n,
+  adjusted = TRUE
+)
+
+# Close lure discrimination - TARG vs LURE  
 lure_dprime <- psycho::dprime(
   n_hit = semmst_data_rec_wide_dprime_lurebinned$TARG_old,
   n_fa = semmst_data_rec_wide_dprime_lurebinned$LURE_old,
@@ -282,12 +307,13 @@ lure_dprime <- psycho::dprime(
   adjusted = TRUE
 )
 
+
 # Dprime dataframe - longformat
-dprimes_table_wide <- data.frame(semmst_data_rec_wide_dprime$ID, semmst_data_rec_wide_dprime$AgeGroup, rec_dprime$dprime, close_dprime$dprime, dist_dprime$dprime, lure_dprime$dprime) %>% 
+dprimes_table_wide_lurebinned <- data.frame(semmst_data_rec_wide_dprime$ID, semmst_data_rec_wide_dprime$AgeGroup, rec_dprime$dprime, lure_dprime$dprime) %>% 
   as_tibble() %>%
-  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime", "close_dprime", "distant_dprime", "lure_dprime"))
+  magrittr::set_colnames(c("ID", "AgeGroup", "rec_dprime", "lure_dprime"))
   
-dprimes_table = dprimes_table_wide %>% 
+dprimes_table_lurebinned = dprimes_table_wide_lurebinned %>% 
   gather("type", "dprime", -c(ID,AgeGroup))
 
 ```
@@ -339,7 +365,7 @@ heatlh_sum = health_data %>%
   
 
 ### FINAL MERGE
-semmst_data_final = Reduce(function(x, y) merge(x, y, all=TRUE), list(semmst_data_wider_cosine, mst_sum, nback_sum, palt_sum, heatlh_sum, dprimes_table_wide))
+semmst_data_final = Reduce(function(x, y) merge(x, y, all=TRUE), list(semmst_data_wider_cosine, mst_sum, nback_sum, palt_sum, heatlh_sum, dprimes_table_wide_lurebinned, dprimes_table_wide))
 
 ```
 
@@ -1911,30 +1937,15 @@ MST - sMST correlation
 
 ```{r}
 
-# Fixed correlations with only one datapoint per participant
-semmst_data_final_clean_youngcorr = semmst_data_final_clean %>% 
-  filter(AgeGroup == "YA") %>% 
-  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
-  distinct()
-semmst_data_final_clean_oldcorr = semmst_data_final_clean %>% 
-  filter(AgeGroup == "OA") %>% 
-  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
-  distinct()
-
-cor.test(semmst_data_final_clean_youngcorr$MST_ldi, semmst_data_final_clean_youngcorr$lure_dprime) # YOUNG
-cor.test(semmst_data_final_clean_oldcorr$MST_ldi, semmst_data_final_clean_oldcorr$lure_dprime) # OLD
-
-```
-
-
-```{r}
+# MST - smst LDI correlation
+cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$close_dprime)
+cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$distant_dprime)
+cor.test(semmst_data_final_clean$MST_ldi, semmst_data_final_clean$lure_dprime)
 
 # MST - smst REC dprime
 cor.test(semmst_data_final_clean$MST_rec_score, semmst_data_final_clean$rec_dprime)
 
 semmst_data_final_clean %>% 
-  select(ID, AgeGroup, MST_rec_score, rec_dprime) %>% 
-  distinct() %>% 
   filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_rec_score, y = rec_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -1947,8 +1958,6 @@ semmst_data_final_clean %>%
 
 # MST - smst CLOSE dprime
 semmst_data_final_clean %>% 
-  select(ID, AgeGroup, MST_ldi, close_dprime) %>% 
-  distinct() %>% 
   #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = close_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -1961,8 +1970,6 @@ semmst_data_final_clean %>%
 
 # MST - smst DISTANT dprime
 semmst_data_final_clean %>% 
-  select(ID, AgeGroup, MST_ldi, distant_dprime) %>% 
-  distinct() %>% 
   #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = distant_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -1975,8 +1982,6 @@ semmst_data_final_clean %>%
 
 # MST - LURE vs REC
 semmst_data_final %>% 
-  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
-  distinct() %>% 
   #filter(MST_rec_score > 0.4) %>%
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 4) +
@@ -3378,7 +3383,6 @@ semmst_data_rec_se = semmst_data_rec %>%
   group_by(AgeGroup, ID, stimtype) %>%
   mutate(percentage_id = n/sum(n)) %>%
   group_by(AgeGroup, stimtype, response) %>%
-  filter(response == "old") %>% 
   summarise(se = sd(percentage_id, na.rm=FALSE) / sqrt(length(percentage_id)),
             percentage_id = mean(percentage_id, na.rm=FALSE))
 
@@ -3391,22 +3395,16 @@ semmst_data_rec %>%
   group_by(AgeGroup, ID, stimtype) %>%
   mutate(percentage_id = n/sum(n)) %>%
   ungroup() %>%
-  filter(response == "old") %>% 
-  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")))) +
+  ggplot(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None")))) +
     geom_bar(stat = "summary", position = position_dodge(width=1)) +
     geom_errorbar(aes(ymin=percentage_id-se, ymax=percentage_id+se, group=factor(response, levels=c("old", "new"))), width=.2,
                  position=position_dodge(1), size=1.5, data = semmst_data_rec_se) +
-<<<<<<< Updated upstream
-    labs(x = "Type of stimulus", y = "Percentage of 'old' response", title = "Percentage of 'old' response given for different\n stimulus conditions in the Recognition phase of the SMST task") +
-=======
     #geom_point(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None"))), position = position_jitterdodge(dodge.width=1, jitter.width = 0.2), size = 3) +
     labs(x = "Stimulus condition", y = "Percentage of responses", title = "Percentage of responses for different stimulus\n conditions in the recognition phase of the sMST", fill = "Type of\nresponse") +
->>>>>>> Stashed changes
     scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
     custom_theme +
-    theme(legend.position = "none") +
     facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
-    scale_fill_manual(values = c("#4DAF4A", "#306EFF", "#FFEF00", "#E41A1C")) +
+    scale_fill_brewer(palette = "Dark2") +
     scale_x_discrete(labels=c("TARG" = "TARGET", 
                               "CLOSE" = "CLOSE\nLURE",
                               "DISTANT" = "DISTANT\nLURE",
@@ -3436,80 +3434,7 @@ dprimes_table %>%
 
 
 
-<<<<<<< Updated upstream
-```{r}
-semmst_data_final_clean %>%
-  select(ID, AgeGroup, Sex, Age, Beck, Vocabulary, Digit_symbol, Non_word_span, Non_word_sum, Moca, MST_rec_score, MST_ldi, exercise_regular, alcohol_regular, caffeine_regular) %>% #PALT_best_performance_trial, PALT_best_performance_score,
-  gather(questionnaire, result, -ID, -AgeGroup, -Sex, -Age) %>% 
-  filter(questionnaire != 'Moca') %>%
-  unique() %>% drop_na() %>% 
-  ggplot(aes(x = factor(AgeGroup, levels= c("OA", "YA"), labels=c("Old Adults", "Young Adults")), y = as.numeric(result))) +
-    geom_violin(aes(fill = AgeGroup)) +
-    geom_boxplot(aes(fill = AgeGroup), width=0.2) +
-    geom_point(position = position_jitter(), size = 2.5) +
-    facet_wrap(~questionnaire, ncol = 5, scales = "free", labeller = labeller(questionnaire = c("Non_word_sum"="Non-word repetition raw score",
-                                                                                      "Non_word_span" = "Non-word repetition span",
-                                                                                      "Beck" = "Beck Depression Score",
-                                                                                      "Digit_symbol" = "Digit-Symbol",
-                                                                                      "MST_ldi" = "LDI in MST",
-                                                                                      "MST_rec_score" = "Recognition in MST",
-                                                                                      #"PALT_best_performance_score" = "Best Paired-Associates Score",
-                                                                                      #"PALT_best_performance_trial" = "Best Paired-Associte Round",
-                                                                                      "Vocabulary" = "Vocabulary",
-                                                                                      "exercise_regular" = "Exercise hours regularly",
-                                                                                      "alcohol_regular" = "Regular alcohol consumption",
-                                                                                      "caffeine_regular" = "Regular coffee consumption",
-                                                                                      "Moca" = "MOCA score"))) +
-    custom_theme +
-    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
-    labs(title = "Results of subject-level covariates", x = "Age Groups", y = "Scores of different covariate tests", color = "ID of Participants") +
-    scale_fill_brewer(palette="Paired") + 
-    theme(legend.position = "none") 
-
-```
-
-Stimuli covariates
-
-```{r}
-
-smst_stim_list_complex %>% 
-  select(-c(adj_phon, noun_phon)) %>% 
-  gather(covariate, result, -noun, -stimtype_REC) %>%
-  unite("merged", stimtype_REC, covariate, sep ="-") %>% 
-  filter(merged != "CLOSE-noun_freq" & merged != "DISTANT-noun_freq") %>% 
-  filter(merged != "CLOSE-noun_char" & merged != "DISTANT-noun_char") %>% 
-  filter(merged != "CLOSE-noun_syll" & merged != "DISTANT-noun_syll") %>% 
-  separate(merged, c("stimtype_REC", "covariate"), sep="-") %>%
-  ggplot(aes(x = factor(stimtype_REC, levels= c("TARG", "CLOSE", "DISTANT", "FOIL"), labels=c("Targets","Close\nLures", "Distant\nLures", "Foils")), y = as.numeric(result))) +
-    geom_violin(aes(fill = stimtype_REC)) +
-    geom_point(position = position_jitter()) +
-    geom_boxplot(aes(fill = stimtype_REC), width=0.2) +
-    facet_wrap(~covariate, scales = "free", ncol = 3, labeller = labeller(covariate = c("noun_freq"="Noun frequency",
-                                                                              "noun_char" = "Noun characters",
-                                                                              "noun_syll" = "Noun syllables",
-                                                                              "adj_freq" = "Adjective frequency",
-                                                                              "adj_char" = "Adjective characters",
-                                                                              "adj_syll" = "Adjective syllables",
-                                                                              "ya_ert_mean" = "Meaningfulness (30 YA)",
-                                                                              "ya_konk_mean" = "Concreteness (30 YA)",
-                                                                              "ya_aro_mean" = "Arousal (30 YA)",
-                                                                              "oa_ert_mean" = "Meaningfulness (34 OA)",
-                                                                              "oa_konk_mean" = "Concreteness (34 OA)",
-                                                                              "oa_aro_mean" = "Arousal (34 OA)"))) +
-    custom_theme +
-    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
-    labs(title = "Item-level covariates", x = "Stimulus Conditions", y = "Results of different item-level covariates") +
-    #scale_fill_brewer(palette="Dark2") + 
-    scale_fill_manual(values = c("#306EFF", "#FFEF00", "#E41A1C", "#4DAF4A")) +
-    theme(legend.position = "none") 
-
-
-```
-
-### Figure 4 - GLMEM results
-=======
 ### Figure 3 - GLMEM results
->>>>>>> Stashed changes
 
 Estimates - simple
 
@@ -3643,18 +3568,12 @@ Correlation FINAL
 
 ```{r}
 
-semmst_data_final_clean %>%
-  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
-  distinct() %>% 
+semmst_data_final %>% 
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
-<<<<<<< Updated upstream
-    geom_point(shape = 21, color = 'white', size = 8) +
-=======
     geom_point(shape = 21, color = 'white', size = 6) +
->>>>>>> Stashed changes
     scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
     sm_statCorr(fit.params = list(color = 'black',
-                                   linetype = 'dashed'), text_size = 15) +
+                                   linetype = 'dashed'), text_size = 10) +
     custom_theme +
     theme(legend.position = "none") +
     labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of d' in the sMST\nand the LDI scores in the MST") +
@@ -3663,8 +3582,6 @@ semmst_data_final_clean %>%
 ```
 
 
-<<<<<<< Updated upstream
-=======
 
 ### Supplementary Figures
 
@@ -3826,4 +3743,3 @@ smst_stim_list_complex %>%
 
 
 ```
->>>>>>> Stashed changes
