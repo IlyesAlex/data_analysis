@@ -169,7 +169,7 @@ Reading in data for all covariates. Creating spearate dataframes and a GRAND mer
 
 ```{r}
 
-# Papir ceruza
+# Paper pencil
 paper_pencil_data_wide = semmst_data %>%
   select(ID, AgeGroup, Nem, Kor, Beck, Szókincs, `Digit-Symbol`, Álszó_terjedelem, Álszó_össz) %>% 
   distinct() 
@@ -2057,16 +2057,140 @@ summary(model_anova_accenc)
 
 ```
 
-## SUPPLEMENTARY - item covariate t-tests
+
+## Health and Lifestyle - Descriptives
 
 ```{r}
 
-item_covariate_tests = semmst_data_final_clean %>% 
-  select(ID, AgeGroup, stimtype_REC, response_REC, reaction_time_REC, ya_ert_mean, ya_konk_mean, ya_aro_mean, oa_ert_mean, oa_konk_mean, oa_aro_mean) 
+health_data_supplement = read_excel("data/D_PencilPaper/paper_pencil_logs.xlsx", sheet = 2) 
+
+# Question 1
+health_data_supplement %>%
+  select(ParticipantID, AgeGroup, Alcohol_24hours) %>% 
+  group_by(AgeGroup, Alcohol_24hours) %>% 
+  summarise(cnt = n()) %>%
+  mutate(freq = round(cnt / sum(cnt), 3))
+  
+# Question 2
+health_data_supplement %>%
+  select(ParticipantID, AgeGroup, Alcohol_24hours_amount) %>%
+  mutate(Alcohol_24hours_amount = as.numeric(substr(Alcohol_24hours_amount, 1, 1))) %>% 
+  group_by(AgeGroup) %>% 
+  filter(Alcohol_24hours_amount != 0) %>% 
+  summarise(mean = mean(Alcohol_24hours_amount, na.rm = TRUE), sd = sd(Alcohol_24hours_amount, na.rm = TRUE))
+  
+# Question 3
+health_data_supplement %>%
+  group_by(AgeGroup) %>% 
+  summarise(median = median(as.numeric(Alcohol_regular_frequency), na.rm =TRUE))
+
+# Question 4
+health_data_supplement %>%
+  group_by(AgeGroup) %>%
+  select(AgeGroup, Alcohol_regular_amount) %>%
+  mutate(Alcohol_regular_amount = as.numeric(substr(Alcohol_regular_amount, 1, 1))) %>% 
+  filter(Alcohol_regular_amount != 0) %>% 
+  summarise(mean = mean(Alcohol_regular_amount, na.rm = TRUE), sd = sd(Alcohol_regular_amount, na.rm = TRUE))
+
+# Question 5
+health_data_supplement %>%
+  group_by(AgeGroup, Caffeine_24hours) %>% 
+  summarise(cnt = n()) %>%
+  mutate(freq = round(cnt / sum(cnt), 3))
+
+# Question 6
+health_data_supplement %>%
+  group_by(AgeGroup) %>% 
+  mutate(Caffeine_24hours_amount = as.numeric(substr(Caffeine_24hours_amount, 1, 1))) %>% 
+  filter(Caffeine_24hours_amount != 0) %>% 
+  summarise(mean = mean(Caffeine_24hours_amount, na.rm = TRUE), sd = sd(Caffeine_24hours_amount, na.rm = TRUE))
+
+# Question 7
+health_data_supplement %>%
+  group_by(AgeGroup) %>% 
+  select(AgeGroup, Caffeine_regular_types) %>%  print(n=80)
+  
+# Question 8
+health_data_supplement %>%
+  group_by(AgeGroup) %>% 
+  summarise(median = median(as.numeric(Caffeine_regular_frequency), na.rm =TRUE))
+
+# Question 9
+health_data_supplement %>%
+  group_by(AgeGroup) %>% 
+  mutate(Caffeine_regular_amount = as.numeric(substr(Caffeine_regular_amount, 1, 1))) %>% 
+  filter(Caffeine_regular_amount != 0) %>% 
+  summarise(mean = mean(Caffeine_regular_amount, na.rm = TRUE), sd = sd(Caffeine_regular_amount, na.rm = TRUE))
+
+# Question 10
+health_data_supplement %>%
+  group_by(AgeGroup, Nicotine_24hours) %>% 
+  drop_na() %>% 
+  summarise(cnt = n()) %>%
+  mutate(freq = round(cnt / sum(cnt), 3))
+  
+  
+# Question 11
+health_data_supplement %>%
+  select(AgeGroup, Nicotine_24hours_amount) %>%
+  group_by(AgeGroup) %>% 
+  drop_na() %>% print(n=80)  
+  mutate(Nicotine_24hours_amount = as.numeric(substr(Nicotine_24hours_amount, 1, 1))) %>% 
+  filter(Nicotine_24hours_amount != 0) %>% 
+  summarise(mean = mean(Nicotine_24hours_amount, na.rm = TRUE), sd = sd(Nicotine_24hours_amount, na.rm = TRUE))
+
+# Question 12
+health_data_supplement %>%
+  select(AgeGroup, Nicotine_regular_types) %>% 
+  group_by(AgeGroup) %>%
+  drop_na() %>%  print(n=80)
+  
+# Question 13
+health_data_supplement %>%
+  select(AgeGroup, Nicotine_regular_frequency) %>%
+  group_by(AgeGroup) %>%
+  drop_na() %>%  
+  summarise(median = median(as.numeric(Nicotine_regular_frequency), na.rm =TRUE))
+  
+# Question 14
+health_data_supplement %>%
+  select(AgeGroup, Nicotine_regular_amount) %>%
+  group_by(AgeGroup) %>%
+  drop_na() %>% print(n=80)
+  mutate(Nicotine_regular_amount = as.numeric(substr(Nicotine_regular_amount, 1, 1))) %>% 
+  filter(Nicotine_regular_amount != 0) %>% 
+  summarise(mean = mean(Nicotine_regular_amount, na.rm = TRUE), sd = sd(Nicotine_regular_amount, na.rm = TRUE))
+  
+# Question 15
+health_data_supplement %>%
+  group_by(AgeGroup) %>% 
+  summarise(median = median(as.numeric(Sleep_regular_amount), na.rm =TRUE))
+  
+# Question 16
+health_data_supplement %>%
+  group_by(AgeGroup) %>% select(AgeGroup, Sleep_yesterday_amount) %>%
+  summarise(median = median(as.numeric(Sleep_yesterday_amount), na.rm =TRUE))
+
+# Question 17
+health_data_supplement %>%
+  group_by(AgeGroup, Exercise_regular_types) %>% 
+  select(AgeGroup, Exercise_regular_types) %>%  count() %>%  print(n=80)
+  
+# Question 18
+health_data_supplement %>%
+  group_by(AgeGroup) %>%
+  summarise(median = median(as.numeric(Exercise_regular_frequency), na.rm =TRUE))
+  
+# Question 19
+health_data_supplement %>%
+  group_by(AgeGroup) %>% select(AgeGroup, Sedentary_regular_time) %>% 
+  mutate(Sedentary_regular_time = as.numeric(sub(" .*", "", Sedentary_regular_time))) %>%
+  summarise(mean = mean(Sedentary_regular_time, na.rm = TRUE), sd = sd(Sedentary_regular_time, na.rm = TRUE))
+
+  
 
 
 ```
-
 
 # Plots
 
@@ -3239,70 +3363,8 @@ smst_stim_list %>%
 
 ```
 
-### Figure 2 - ENCODING results
 
-ENCODING responses
-
-```{r}
-
-# Grand
-semmst_data_enc_se = semmst_data_enc %>% 
-  select(ID, AgeGroup, stimtype, response) %>% 
-  group_by(ID, AgeGroup, stimtype, response) %>%
-  filter(response != "None") %>% 
-  count() %>%
-  group_by(ID, AgeGroup, stimtype) %>%
-  mutate(percentage = n/sum(n)) %>% 
-  group_by(AgeGroup, stimtype ,response) %>%
-  summarise(se = sd(percentage, na.rm=FALSE) / sqrt(length(percentage)),
-            percentage = mean(percentage, na.rm=FALSE))
-
-semmst_data_enc %>% 
-  select(ID, AgeGroup, stimtype, response) %>% 
-  group_by(ID, AgeGroup, stimtype, response) %>%
-  filter(response != "None") %>% 
-  count() %>%
-  group_by(ID, AgeGroup, stimtype) %>%
-  mutate(percentage = n/sum(n)) %>% 
-  ggplot(aes(x=stimtype, y=percentage)) + 
-    geom_bar(aes(fill = response),position=position_dodge(width=1), stat="summary") +
-    #geom_point(aes(x=stimtype, y=percentage, fill = response),position=position_jitterdodge(dodge.width=1, jitter.width=0.1), size = 3) +
-    geom_errorbar(aes(ymin = percentage-se, ymax = percentage+se, group = response), position=position_dodge(1), width =.2, size = 1.5, data=semmst_data_enc_se) +
-    custom_theme + 
-    labs(x = "Encoding stimulus type", y = "Percentage of responses", title = "Good or not-good responses in SMST encoding phase ", fill = "Response\nmade") +
-    scale_y_continuous(breaks = seq(0,1, by =0.2), limits = c(0,1), labels=percent) +
-    scale_fill_brewer(palette="Dark2", labels = c("good", "no-good")) +
-    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
-    scale_x_discrete(labels=c("TARG" = "TARGET",
-                              "FOIL" = "FOIL"))
-
-```
-
-
-ENCODING RT
-
-```{r}
-# Reaction times in ENC based on response for conditions - faceted by age groups
-semmst_data_enc %>% 
-  drop_na(reaction_time) %>% 
-  select(ID, AgeGroup, itemno, stimtype, response, reaction_time) %>% 
-  ggplot(aes(x = stimtype, y = reaction_time)) +
-    custom_theme +
-    geom_violin(aes(fill = response), position = position_dodge(width=1)) +
-    geom_boxplot(aes(groupby = response), position = position_dodge(width = 1), width = 0.3, lwd = 2) +
-    labs(x = "Encoding stimulus type", 
-         y = "Reaction time", 
-         title = "Reaction time in SMST encoding phase\nby age group, stimulus type and response", 
-         fill = "Response\nmade") +
-    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
-    scale_fill_brewer(palette = "Dark2", labels = c("good", "no-good")) +
-    scale_x_discrete(labels=c("TARG" = "TARGET",
-                              "FOIL" = "FOIL"))
-
-```
-
-
-### Figure 3 - RECOGNITION results
+### Figure 2 - RECOGNITION results
 
 Responses
 
@@ -3334,7 +3396,12 @@ semmst_data_rec %>%
     geom_bar(stat = "summary", position = position_dodge(width=1)) +
     geom_errorbar(aes(ymin=percentage_id-se, ymax=percentage_id+se, group=factor(response, levels=c("old", "new"))), width=.2,
                  position=position_dodge(1), size=1.5, data = semmst_data_rec_se) +
+<<<<<<< Updated upstream
     labs(x = "Type of stimulus", y = "Percentage of 'old' response", title = "Percentage of 'old' response given for different\n stimulus conditions in the Recognition phase of the SMST task") +
+=======
+    #geom_point(aes(x = factor(stimtype, levels=c("TARG", "CLOSE", "DISTANT", "FOIL")), y = percentage_id, fill=factor(response, levels=c("old", "new", "None"))), position = position_jitterdodge(dodge.width=1, jitter.width = 0.2), size = 3) +
+    labs(x = "Stimulus condition", y = "Percentage of responses", title = "Percentage of responses for different stimulus\n conditions in the recognition phase of the sMST", fill = "Type of\nresponse") +
+>>>>>>> Stashed changes
     scale_y_continuous(breaks = seq(0,1, by =0.2), labels=percent) +
     custom_theme +
     theme(legend.position = "none") +
@@ -3348,35 +3415,6 @@ semmst_data_rec %>%
 ```
 
 
-RT
-
-```{r}
-
-# Reaction times in REC based on response for conditions - faceted by age groups
-semmst_data_rec %>% 
-  drop_na(reaction_time) %>% 
-  filter(response != "4") %>%
-  filter(reaction_time < 3) %>% 
-  select(ID, AgeGroup, itemno, stimtype, response, reaction_time) %>% 
-  ggplot(aes(x = stimtype, y = reaction_time)) +
-    custom_theme +
-    geom_violin(aes(fill = AgeGroup), position = position_dodge(width=1)) +
-    geom_boxplot(aes(groupby = AgeGroup), position = position_dodge(width = 1), width = 0.3, lwd = 2) +
-    labs(x = "Recognition stimulus type", 
-         y = "Reaction time", 
-         title = "Reaction time in SMST recognition phase\nby age group and response", 
-         fill = "Age Group") +
-    #facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
-    scale_fill_brewer(palette = "Paired", labels = c("Old\nadults", "Young\nadults")) +
-    scale_x_discrete(labels=c("TARG" = "TARGET",
-                              "CLOSE" = "CLOSE\nLURE",
-                              "DISTANT" = "DISTANT\nLURE",
-                              "FOIL" = "FOIL"))
-
-
-```
-
-
 
 D-prime
 
@@ -3384,12 +3422,12 @@ D-prime
 
 # Boxplot
 dprimes_table %>% 
-  ggplot(aes(x = factor(type, labels = c("TARGET vs.\nCLOSE LURE", "TARGET vs.\nDISTANT LURE", "TARGET vs.\nFOIL")), y = dprime)) +
-    geom_boxplot(aes(colour = factor(type, labels = c("TARGET vs.\nCLOSE LURE", "TARGET vs.\nDISTANT LURE", "TARGET vs.\nFOIL"))), lwd=1.3) +
-    geom_point(aes(x = factor(type, labels = c("TARGET vs.\nCLOSE LURE", "TARGET vs.\nDISTANT LURE", "TARGET vs.\nFOIL")), y = dprime), position = position_jitter(width=0.1), size = 3) +
+  ggplot(aes(x = factor(type, labels = c("TARGET \nvs.\nCLOSE LURE", "TARGET \nvs.\nDISTANT LURE", "TARGET \nvs.\nFOIL")), y = dprime)) +
+    geom_boxplot(aes(colour = factor(type, labels = c("TARGET \nvs.\nCLOSE LURE", "TARGET \nvs.\nDISTANT LURE", "TARGET \nvs.\nFOIL"))), lwd=1.3) +
+    geom_point(aes(x = factor(type, labels = c("TARGET \nvs.\nCLOSE LURE", "TARGET \nvs.\nDISTANT LURE", "TARGET \nvs.\nFOIL")), y = dprime), position = position_jitter(width=0.1), size = 3) +
     #scale_colour_brewer(palette="Dark2") +
     scale_colour_manual(values = c("#306EFF", "#FFEF00",  "#E41A1C")) +
-    labs(x = "Type of d' scores (contrasts)", y = "D' score - discriminability", title = "D' scores for different contrasts split by age group", colour = "Type of d' scores (contrasts)") +
+    labs(x = "Type of d'", y = "Discriminability (d')", title = "Discriminability (d') of stimulus conditions in sMST by age group", colour = "Type of d'") +
     custom_theme +
     facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
     theme(legend.position = "none")
@@ -3397,8 +3435,8 @@ dprimes_table %>%
 ```
 
 
-Covariates
 
+<<<<<<< Updated upstream
 ```{r}
 semmst_data_final_clean %>%
   select(ID, AgeGroup, Sex, Age, Beck, Vocabulary, Digit_symbol, Non_word_span, Non_word_sum, Moca, MST_rec_score, MST_ldi, exercise_regular, alcohol_regular, caffeine_regular) %>% #PALT_best_performance_trial, PALT_best_performance_score,
@@ -3469,6 +3507,9 @@ smst_stim_list_complex %>%
 ```
 
 ### Figure 4 - GLMEM results
+=======
+### Figure 3 - GLMEM results
+>>>>>>> Stashed changes
 
 Estimates - simple
 
@@ -3487,14 +3528,14 @@ plot_model(model_simple, type = "est", transform = "exp", terms = c("(Intercept)
            show.values = TRUE,
            value.offset = .4,
            value.size = 6,
-           dot.size = 6,
-           line.size = 2.5,
+           dot.size = 4,
+           line.size = 1.6,
            vline.color = "red",
            width = 0.5,
            wrap.labels = 70,
            axis.labels = c("Age Group * Distant Lure", "Age Group * Close Lure", "Age Group * Target", "Old Adults", "Distant Lure", "Close Lure", "Target", "Intercept (Foil)"),
-           axis.title = c("Exponentiated estimates", "x"),
-           title = "Simple model",
+           axis.title = c("", "x"),
+           title = "Exponentiated estimates from simple GLMEM",
            order.terms = c(4,6,3,5,1,2),
            group.terms = c(1,1,2,3,2,3),
            show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=1, size = 15, face="bold"))
@@ -3525,12 +3566,12 @@ plot_model(model_complex_participants_cognitive_health, type = "est", transform 
            show.values = TRUE,
            value.offset = .4,
            value.size = 6,
-           dot.size = 6,
-           line.size = 2.5,
+           dot.size = 4,
+           line.size = 1.6,
            vline.color = "red",
-           wrap.labels = 70,
+           wrap.labels = 30,
            width = 0.5,
-           axis.title = c("Exponentiated estimates", "x"),
+           axis.title = c("", "x"),
            axis.labels = c("Close Lure * Old Adults * YA concreteness score",
                            "Distant Lure * Young Adults * YA concreteness score", 
                            "Close Lure * Young Adults * YA concreteness score",
@@ -3547,7 +3588,7 @@ plot_model(model_complex_participants_cognitive_health, type = "est", transform 
                            "Close Lure", 
                            "Target", 
                            "Intercept (Foil)"),
-           title = "Complex model",
+           title = "Exponentiated estimates from complex GLMEM",
            order.terms = c(4,6,3,5,1,2),
            group.terms = c(1,1,2,3,2,3),
            show.intercept = TRUE) + custom_theme + theme(axis.text.y = element_text(vjust = 0.5, hjust=1, size = 15, face="bold"))
@@ -3558,7 +3599,7 @@ Continous GLMEM
 
 ```{r}
 
-# In this plot, we will only include sex and ticket price as predictors.
+# In this plot, we predict p|old by cosine similarity
 semmst_data_final_clean_GLMEM %>% 
   mutate(response_REC = ifelse(response_REC == "old", 1, 0)) %>%
   filter(stimtype_REC != "FOIL") %>% 
@@ -3566,24 +3607,37 @@ semmst_data_final_clean_GLMEM %>%
     aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
     #geom_point() +
     geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
+                method.args = list(family = "binomial"),
+                linewidth=2) +
     coord_cartesian(ylim = c(0, 1), xlim = c(0.4,1)) +
-    scale_y_continuous(labels = scales::percent_format()) +
+    scale_color_discrete(name = "Age\ngroup", labels = c("Young\nadults", "Old\nadults")) +
     custom_theme +
-    labs(title = "Continous GLMEM model plotted", y = "Percentage of 'old' responses", x = "Cosine Similarity")
+    labs(title = "Continous GLMEM", y = "Percentage of 'old' responses", x = "Cosine similarity") +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), legend.text.align = 0) 
+
+
+# Plot to compare with Stark et al. (2013, Neuropsychologica)
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "old", 0, 1)) %>%
+  #filter(stimtype_REC != "FOIL") %>% 
+  ggplot() +
+    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial"),
+                linewidth=2) +
+    coord_cartesian(ylim = c(0, 1), xlim = c(1,0)) +
+    scale_color_discrete(name = "Age\ngroup", labels = c("Young\nadults", "Old\nadults")) +
+    custom_theme +
+    labs(title = "Continous GLMEM", y = "1 - p|'old'", x = "Cosine similarity") +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+panel.background = element_blank(), legend.text.align = 0) 
 
 ```
 
-Effects?
 
-```{r}
-
-
-```
-
-
-
-### Figure 5 - MST correlation
+### Figure 4 - MST correlation
 
 Correlation FINAL
 
@@ -3593,14 +3647,183 @@ semmst_data_final_clean %>%
   select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
   distinct() %>% 
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
+<<<<<<< Updated upstream
     geom_point(shape = 21, color = 'white', size = 8) +
+=======
+    geom_point(shape = 21, color = 'white', size = 6) +
+>>>>>>> Stashed changes
     scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
     sm_statCorr(fit.params = list(color = 'black',
                                    linetype = 'dashed'), text_size = 15) +
     custom_theme +
-    labs(x = "MST LDI", y = "sMST - Lure D'", title = "Correlation of dprimes in the sMST\nand the LDI scores in the original MST") +
-    theme(legend.position = "none") + guides(colour = FALSE)
+    theme(legend.position = "none") +
+    labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of d' in the sMST\nand the LDI scores in the MST") +
+    guides(colour = FALSE)
 
 ```
 
 
+<<<<<<< Updated upstream
+=======
+
+### Supplementary Figures
+
+ENCODING responses
+
+```{r}
+
+# Grand
+semmst_data_enc_se = semmst_data_enc %>% 
+  select(ID, AgeGroup, stimtype, response) %>% 
+  group_by(ID, AgeGroup, stimtype, response) %>%
+  filter(response != "None") %>% 
+  count() %>%
+  group_by(ID, AgeGroup, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>% 
+  group_by(AgeGroup, stimtype ,response) %>%
+  summarise(se = sd(percentage, na.rm=FALSE) / sqrt(length(percentage)),
+            percentage = mean(percentage, na.rm=FALSE))
+
+semmst_data_enc %>% 
+  select(ID, AgeGroup, stimtype, response) %>% 
+  group_by(ID, AgeGroup, stimtype, response) %>%
+  filter(response != "None") %>% 
+  count() %>%
+  group_by(ID, AgeGroup, stimtype) %>%
+  mutate(percentage = n/sum(n)) %>% 
+  ggplot(aes(x=stimtype, y=percentage)) + 
+    geom_bar(aes(fill = response),position=position_dodge(width=1), stat="summary") +
+    #geom_point(aes(x=stimtype, y=percentage, fill = response),position=position_jitterdodge(dodge.width=1, jitter.width=0.1), size = 3) +
+    geom_errorbar(aes(ymin = percentage-se, ymax = percentage+se, group = response), position=position_dodge(1), width =.2, size = 1.5, data=semmst_data_enc_se) +
+    custom_theme + 
+    labs(x = "Encoding stimulus type", y = "Percentage of responses", title = "Good or not-good responses in SMST encoding phase ", fill = "Response\nmade") +
+    scale_y_continuous(breaks = seq(0,1, by =0.2), limits = c(0,1), labels=percent) +
+    scale_fill_brewer(palette="Dark2", labels = c("good", "no-good")) +
+    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_x_discrete(labels=c("TARG" = "TARGET",
+                              "FOIL" = "FOIL"))
+
+```
+
+
+ENCODING RT
+
+```{r}
+# Reaction times in ENC based on response for conditions - faceted by age groups
+semmst_data_enc %>% 
+  drop_na(reaction_time) %>% 
+  select(ID, AgeGroup, itemno, stimtype, response, reaction_time) %>% 
+  ggplot(aes(x = stimtype, y = reaction_time)) +
+    custom_theme +
+    geom_violin(aes(fill = response), position = position_dodge(width=1)) +
+    geom_boxplot(aes(groupby = response), position = position_dodge(width = 1), width = 0.3, lwd = 2) +
+    labs(x = "Encoding stimulus type", 
+         y = "Reaction time", 
+         title = "Reaction time in SMST encoding phase\nby age group, stimulus type and response", 
+         fill = "Response\nmade") +
+    facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_fill_brewer(palette = "Dark2", labels = c("good", "no-good")) +
+    scale_x_discrete(labels=c("TARG" = "TARGET",
+                              "FOIL" = "FOIL"))
+
+```
+
+
+Participant Covariates
+
+```{r}
+semmst_data_final_clean %>%
+  select(ID, AgeGroup, Sex, Age, Beck, Vocabulary, Digit_symbol, Non_word_span, Non_word_sum, Moca, MST_rec_score, MST_ldi, exercise_regular, alcohol_regular, caffeine_regular) %>% 
+  gather(questionnaire, result, -ID, -AgeGroup, -Sex, -Age) %>% 
+  filter(questionnaire != 'Moca') %>%
+  unique() %>% drop_na() %>% 
+  ggplot(aes(x = factor(AgeGroup, levels= c("OA", "YA"), labels=c("Old Adults", "Young Adults")), y = as.numeric(result))) +
+    geom_violin(aes(fill = AgeGroup)) +
+    geom_boxplot(aes(fill = AgeGroup), width=0.2) +
+    geom_point(position = position_jitter(), size = 2.5) +
+    facet_wrap(~questionnaire, ncol = 5, scales = "free", labeller = labeller(questionnaire = c("Non_word_sum"="Non-word repetition raw score",
+                                                                                      "Non_word_span" = "Non-word repetition span",
+                                                                                      "Beck" = "Beck Depression Score",
+                                                                                      "Digit_symbol" = "Digit-Symbol",
+                                                                                      "MST_ldi" = "LDI in MST",
+                                                                                      "MST_rec_score" = "Recognition in MST",
+                                                                                      "Vocabulary" = "Vocabulary",
+                                                                                      "exercise_regular" = "Exercise hours regularly",
+                                                                                      "alcohol_regular" = "Regular alcohol consumption",
+                                                                                      "caffeine_regular" = "Regular coffee consumption",
+                                                                                      "Moca" = "MOCA score"))) +
+    custom_theme +
+    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
+    labs(title = "Results of subject-level covariates", x = "Age Groups", y = "Scores of different covariate tests", color = "ID of Participants") +
+    scale_fill_brewer(palette="Paired") + 
+    theme(legend.position = "none") 
+
+```
+
+
+REC RT
+
+```{r}
+
+# Reaction times in REC based on response for conditions - faceted by age groups
+semmst_data_rec %>% 
+  drop_na(reaction_time) %>% 
+  filter(response != "4") %>%
+  filter(reaction_time < 3) %>% 
+  select(ID, AgeGroup, itemno, stimtype, response, reaction_time) %>% 
+  ggplot(aes(x = stimtype, y = reaction_time)) +
+    custom_theme +
+    geom_violin(aes(fill = AgeGroup), position = position_dodge(width=1)) +
+    geom_boxplot(aes(groupby = AgeGroup), position = position_dodge(width = 1), width = 0.3, lwd = 2) +
+    labs(x = "Recognition stimulus type", 
+         y = "Reaction time", 
+         title = "Reaction time in SMST recognition phase\nby age group and response", 
+         fill = "Age Group") +
+    #facet_wrap(~AgeGroup, labeller = labeller(AgeGroup=c("OA" = "Old Adults", "YA" = "Young Adults"))) +
+    scale_fill_brewer(palette = "Paired", labels = c("Old\nadults", "Young\nadults")) +
+    scale_x_discrete(labels=c("TARG" = "TARGET",
+                              "CLOSE" = "CLOSE\nLURE",
+                              "DISTANT" = "DISTANT\nLURE",
+                              "FOIL" = "FOIL"))
+
+
+```
+
+Stimuli covariates
+
+```{r}
+
+smst_stim_list_complex %>% 
+  select(-c(adj_phon, noun_phon)) %>% 
+  gather(covariate, result, -noun, -stimtype_REC) %>%
+  unite("merged", stimtype_REC, covariate, sep ="-") %>% 
+  filter(merged != "CLOSE-noun_freq" & merged != "DISTANT-noun_freq") %>% 
+  filter(merged != "CLOSE-noun_char" & merged != "DISTANT-noun_char") %>% 
+  filter(merged != "CLOSE-noun_syll" & merged != "DISTANT-noun_syll") %>% 
+  separate(merged, c("stimtype_REC", "covariate"), sep="-") %>%
+  ggplot(aes(x = factor(stimtype_REC, levels= c("TARG", "CLOSE", "DISTANT", "FOIL"), labels=c("Targets","Close\nLures", "Distant\nLures", "Foils")), y = as.numeric(result))) +
+    geom_violin(aes(fill = stimtype_REC)) +
+    geom_point(position = position_jitter()) +
+    geom_boxplot(aes(fill = stimtype_REC), width=0.2) +
+    facet_wrap(~covariate, scales = "free", ncol = 3, labeller = labeller(covariate = c("noun_freq"="Noun frequency",
+                                                                              "noun_char" = "Noun characters",
+                                                                              "noun_syll" = "Noun syllables",
+                                                                              "adj_freq" = "Adjective frequency",
+                                                                              "adj_char" = "Adjective characters",
+                                                                              "adj_syll" = "Adjective syllables",
+                                                                              "ya_ert_mean" = "Meaningfulness (30 YA)",
+                                                                              "ya_konk_mean" = "Concreteness (30 YA)",
+                                                                              "ya_aro_mean" = "Arousal (30 YA)",
+                                                                              "oa_ert_mean" = "Meaningfulness (34 OA)",
+                                                                              "oa_konk_mean" = "Concreteness (34 OA)",
+                                                                              "oa_aro_mean" = "Arousal (34 OA)"))) +
+    custom_theme +
+    #geom_text(aes(label=result, fill = 'black'), hjust = -0.5) +
+    labs(title = "Item-level covariates", x = "Stimulus Conditions", y = "Results of different item-level covariates") +
+    #scale_fill_brewer(palette="Dark2") + 
+    scale_fill_manual(values = c("#306EFF", "#FFEF00", "#E41A1C", "#4DAF4A")) +
+    theme(legend.position = "none") 
+
+
+```
+>>>>>>> Stashed changes
