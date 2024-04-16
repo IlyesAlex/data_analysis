@@ -54,26 +54,6 @@ custom_theme = theme(
 
 ```
 
-# DEMOGRAPHY
-
-Get mean age and distribution of sex
-
-```{r}
-
-semmst_data_final %>% 
-  select(ID, AgeGroup, Age, Sex) %>% 
-  unique() %>% 
-  group_by(AgeGroup) %>% 
-  summarize(avg_age = mean(Age), sd_age = sd(Age))
-
-semmst_data_final %>% 
-  select(ID, AgeGroup, Age, Sex) %>% 
-  unique() %>% 
-  group_by(AgeGroup) %>% 
-  count(Sex)
-```
-
-
 # Data handling
 
 ## Reading in the data
@@ -275,10 +255,12 @@ Lures binned as one
 
 ```{r}
 
-semmst_data_rec_wide_dprime_lurebinned = semmst_data_final_clean  %>%
-  mutate(stimtype_REC = recode(stimtype_REC, 'CLOSE' = 'LURE', 'DISTANT' = 'LURE')) %>% 
-  count(ID, AgeGroup, stimtype_REC, response_REC) %>% 
-  unite("stim_resp", c("stimtype_REC", "response_REC"), sep = "_") %>% 
+semmst_data_rec_wide_dprime_lurebinned = semmst_data_rec %>%
+  filter(reaction_time <= 3) %>% 
+  filter(response != "None" & response != "4") %>% 
+    mutate(stimtype = recode(stimtype, 'CLOSE' = 'LURE', 'DISTANT' = 'LURE')) %>%
+  count(ID, AgeGroup, stimtype, response) %>%
+  unite("stim_resp", c("stimtype", "response"), sep = "_") %>% 
   spread(stim_resp, n) %>% 
   mutate_all(~ifelse(is.na(.), 0, .)) %>% 
   mutate(targ_n = TARG_new + TARG_old) %>% 
@@ -315,6 +297,9 @@ dprimes_table_wide_lurebinned <- data.frame(semmst_data_rec_wide_dprime$ID, semm
   
 dprimes_table_lurebinned = dprimes_table_wide_lurebinned %>% 
   gather("type", "dprime", -c(ID,AgeGroup))
+
+dprimes_wide_binned_norec = dprimes_table_wide_lurebinned %>% 
+  select(-rec_dprime)
 
 ```
 
@@ -365,7 +350,7 @@ heatlh_sum = health_data %>%
   
 
 ### FINAL MERGE
-semmst_data_final = Reduce(function(x, y) merge(x, y, all=TRUE), list(semmst_data_wider_cosine, mst_sum, nback_sum, palt_sum, heatlh_sum, dprimes_table_wide_lurebinned, dprimes_table_wide))
+semmst_data_final = Reduce(function(x, y) merge(x, y, all=TRUE), list(semmst_data_wider_cosine, mst_sum, nback_sum, palt_sum, heatlh_sum, dprimes_wide_binned_norec, dprimes_table_wide))
 
 ```
 
@@ -403,8 +388,26 @@ semmst_data_final_clean = semmst_data_final_clean%>%
 ```
 
 
-
 # STATS
+## DEMOGRAPHY
+
+Get mean age and distribution of sex
+
+```{r}
+
+semmst_data_final %>% 
+  select(ID, AgeGroup, Age, Sex) %>% 
+  unique() %>% 
+  group_by(AgeGroup) %>% 
+  summarize(avg_age = mean(Age), sd_age = sd(Age))
+
+semmst_data_final %>% 
+  select(ID, AgeGroup, Age, Sex) %>% 
+  unique() %>% 
+  group_by(AgeGroup) %>% 
+  count(Sex)
+```
+
 ## Basic stats
 
 Reaction times
@@ -769,7 +772,7 @@ sjstats::anova_stats(model_anova) # Full summary
 
 ## Analyses - GLMEM
 
-#### Checking presumptions - MD outliers
+### Checking presumptions - MD outliers
 
 ```{r}
 # Outliers: Mahalanobis
@@ -781,6 +784,7 @@ ID_to_identify = semmst_data_final_clean %>%
 
 data_structure = semmst_data_final_clean %>% 
   select("Beck", "Vocabulary", "Digit_symbol", "Non_word_sum", "Non_word_span", "MST_rec_score", "MST_ldi", "PALT_best_performance_trial", "PALT_best_performance_score", "alcohol_regular", "caffeine_regular", "sleep_regular", "exercise_regular", "sedentary_regular") %>% 
+  mutate_if(is.factor, as.numeric) %>% 
   distinct() 
 
 data_structure.center  = colMeans(data_structure)
@@ -796,8 +800,8 @@ cutoff <- qchisq(p = 0.95 , df = ncol(data_structure))
 ## Display observation whose distance greater than cutoff value
 cut_offs = data_structure[distances > cutoff ,]
 result = merge(cut_offs, ID_to_identify)
-## Returns : 2., 29. observations -> IDs: 006150 - MST check?;  421568 - MST check + ismerte az MST-t, de össze volt zavarodva, hogy "melyiket kérdeztük?"
-## Returns: 24., 33. observations -> IDs: 392539 - Digit Symbol 95 nagyon magas; 449122 - Vocabulary 8 nagyon alacsony
+## Returns : 2., 29. observations -> IDs: 006150 - MST check?;  421568 - MST check + she knew the MST, but she was confused by the task "which one did you ask for?"
+## Returns: 24., 33. observations -> IDs: 392539 - Digit Symbol 95 outlier; 449122 - Vocabulary 8 outlier
 
 semmst_data_final_clean_GLMEM = semmst_data_final_clean %>% 
   filter(ID != "006150" & ID != "421568" & ID != "392539" & ID != "449122") %>% 
@@ -811,7 +815,7 @@ semmst_data_final_clean_GLMEM = semmst_data_final_clean %>%
 ```
 
 
-#### Normality of random effects
+### Normality of random effects
 
 ```{r}
 
@@ -905,7 +909,7 @@ semmst_data_final_clean_plot_word %>%
 ```
 
 
-#### MODELS based on Naspi (2022) - Base models (most complex) - OA & YA + all stim types
+### MODELS based on Naspi (2022) - Base models (most complex) - OA & YA + all stim types
 
 Simple model - no covariates
 
@@ -920,7 +924,7 @@ library(broom.mixed)
 library(performance)
 ```
 
-###### Simple model with only two fixed effects in interaction
+#### Simple model with only two fixed effects in interaction
 
 ```{r}
 model_simple = glmer(response_REC ~ stimtype_REC * AgeGroup +
@@ -939,7 +943,7 @@ Model analysis and plot
 # OR
 broom.mixed::tidy(model_simple, conf.int = TRUE, exponentiate = TRUE)
 
-# In this plot, we will only include sex and ticket price as predictors.
+# Plotting ratio
 semmst_data_final_clean_GLMEM %>% 
   mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
   ggplot() +
@@ -960,7 +964,7 @@ summary(model_simple)
 ```
 
 
-###### Complex models
+#### Complex models
 
 ```{r}
 
@@ -1105,7 +1109,7 @@ model_complex_participants_cognitive_health = glmer(response_REC ~ stimtype_REC 
 summary(model_complex_participants_cognitive_health)
 broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE) %>%  print(n = 70)
 r2(model_complex_participants_cognitive_health)
-### AIC = 9022.9; R2 = 0.475
+### AIC = 9026.7; R2 = 0.475
 #### Significant main effects of cond
 ### TARG: estimate = 8.96, p < .001
 ### CLOSE: estimate = 1.92, p < .001
@@ -1127,6 +1131,8 @@ r2(model_complex_participants_cognitive_health)
 ### CLOSE * AgeYA * ya_konk: estimate = 1.47, p < .001
 ### DISTANT * AgeYA * ya_konk:estimate = 1.31, p < .01
 ### CLOSE * AgeOA * ya_konk: estimate = 1.20, p = .04
+
+anova(model_simple, model_complex_participants_cognitive_health, test = "Chisq")
 
 model_optimal_participants_cognitive_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
                                         #stimtype_REC * AgeGroup * Beck_scale +
@@ -1164,7 +1170,7 @@ summary(model_complex_participants_cognitive_health)
 # OR
 broom.mixed::tidy(model_complex_participants_cognitive_health, conf.int = TRUE, exponentiate = TRUE)
 
-# In this plot, we will only include sex and ticket price as predictors.
+# Plotting ratio
 semmst_data_final_clean_GLMEM %>% 
   mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
   ggplot() +
@@ -1183,10 +1189,157 @@ r2(model_complex_participants_cognitive_health)
 
 ```
 
+#### Continous model
 
-###### Model variations
+```{r}
 
-###### Cognitive
+semmst_data_final_clean_GLMEM_cont_dist = semmst_data_final_clean_GLMEM %>% 
+  filter(stimtype_REC != "TARG") %>% 
+  filter(stimtype_REC != "FOIL") %>% 
+  filter(stimtype_REC != "CLOSE")
+
+semmst_data_final_clean_GLMEM_cont_close = semmst_data_final_clean_GLMEM %>% 
+  filter(stimtype_REC != "TARG") %>% 
+  filter(stimtype_REC != "FOIL") %>% 
+  filter(stimtype_REC != "DISTANT") %>% 
+  filter(cosine_metric < .89)
+
+semmst_data_final_clean_GLMEM_cont_lures = semmst_data_final_clean_GLMEM %>% 
+  #filter(stimtype_REC != "TARG") %>% 
+  filter(stimtype_REC != "FOIL") 
+
+  
+  
+model_simple_cont_only_distant = glmer(response_REC ~ AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM_cont_dist,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_cont_only_close = glmer(response_REC ~ AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM_cont_close,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_cont_only_lures = glmer(response_REC ~ AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM_cont_lures,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+
+
+model_complex_cont_only = glmer(response_REC ~ cosine_metric * AgeGroup +
+                                        AgeGroup:Beck_scale +
+                                        AgeGroup:Vocabulary_scale +
+                                        AgeGroup:Digit_symbol_scale +
+                                        AgeGroup:Non_word_sum_scale +
+                                        AgeGroup:MST_ldi_scale +
+                                        AgeGroup:exercise_regular +
+                                        AgeGroup:sleep_regular +
+                                        cosine_metric*AgeGroup:oa_konk_mean_scale +
+                                        cosine_metric*AgeGroup:ya_konk_mean_scale +  
+                                        cosine_metric*AgeGroup:oa_aro_mean_log_scale +
+                                        cosine_metric*AgeGroup:ya_aro_mean_log_scale +
+                                        cosine_metric:noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='bobyqa', optCtrl=list(maxfun = 20000)), nAGQ=0)
+
+model_simple_cont_all = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_cont_nofoil = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = filter(semmst_data_final_clean_GLMEM, stimtype_REC != "FOIL"),
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+```
+
+```{r}
+
+summary(model_simple_cont_only_lures)
+summary(model_simple_cont_only_close)
+summary(model_simple_cont_only_distant)
+
+# OR
+broom.mixed::tidy(model_simple_cont_only_lures, conf.int = TRUE, exponentiate = TRUE)
+broom.mixed::tidy(model_simple_cont_only_close, conf.int = TRUE, exponentiate = TRUE)
+broom.mixed::tidy(model_simple_cont_only_distant, conf.int = TRUE, exponentiate = TRUE)
+
+r2(model_simple_cont_only_lures)
+r2(model_simple_cont_only_close)
+r2(model_simple_cont_only_distant)
+
+
+# Plotting ratio
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "old", 1, 0)) %>%
+  filter(stimtype_REC != "FOIL") %>% 
+  ggplot() +
+    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1), xlim = c(0.4,1)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Continous GLMEM model plotted", y = "Percentage of 'old' responses", x = "Cosine Similarity")
+
+# Evaluating model
+r2(model_complex_participants_cognitive_optimal)
+
+```
+
+```{r}
+
+summary(model_complex_cont_only)
+
+# OR
+broom.mixed::tidy(model_complex_cont_only, conf.int = TRUE, exponentiate = TRUE)
+
+# Plotting ratio
+semmst_data_final_clean_GLMEM %>% 
+  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
+  filter(stimtype_REC != "FOIL") %>% 
+  ggplot() +
+    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
+    #geom_point() +
+    geom_smooth(method = "glm", 
+                method.args = list(family = "binomial")) +
+    coord_cartesian(ylim = c(0, 1), xlim = c(1,0.4)) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    custom_theme +
+    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Cosine Similarity")
+
+# Evaluating model
+r2(model_complex_cont_only)
+
+```
+
+
+
+#### Model variations
+
+##### Cognitive
 
 ```{r}
 
@@ -1415,7 +1568,7 @@ model_complex_participants_cognitive_optimal = glmer(response_REC ~ stimtype_REC
 # OR
 broom.mixed::tidy(model_complex_participants_cognitive_optimal, conf.int = TRUE, exponentiate = TRUE)
 
-# In this plot, we will only include sex and ticket price as predictors.
+# Plotting ratio
 semmst_data_final_clean_GLMEM %>% 
   mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
   ggplot() +
@@ -1433,7 +1586,7 @@ r2(model_complex_participants_cognitive_optimal)
 
 ```
 
-###### Health
+##### Health
 
 ```{r}
 
@@ -1481,7 +1634,7 @@ summary(model_complex_participants_health_C)
 ```
 
 
-###### Word
+##### Word
 
 ```{r}
 
@@ -1499,152 +1652,6 @@ glmer(response_REC ~ stimtype_REC * AgeGroup +
                                         data = semmst_data_final_clean_GLMEM,
                                         control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
 
-
-```
-
-###### Continous model
-
-```{r}
-
-semmst_data_final_clean_GLMEM_cont_dist = semmst_data_final_clean_GLMEM %>% 
-  filter(stimtype_REC != "TARG") %>% 
-  filter(stimtype_REC != "FOIL") %>% 
-  filter(stimtype_REC != "CLOSE")
-
-semmst_data_final_clean_GLMEM_cont_close = semmst_data_final_clean_GLMEM %>% 
-  filter(stimtype_REC != "TARG") %>% 
-  filter(stimtype_REC != "FOIL") %>% 
-  filter(stimtype_REC != "DISTANT") %>% 
-  filter(cosine_metric < .89)
-
-semmst_data_final_clean_GLMEM_cont_lures = semmst_data_final_clean_GLMEM %>% 
-  #filter(stimtype_REC != "TARG") %>% 
-  filter(stimtype_REC != "FOIL") 
-
-  
-  
-model_simple_cont_only_distant = glmer(response_REC ~ AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM_cont_dist,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_simple_cont_only_close = glmer(response_REC ~ AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM_cont_close,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_simple_cont_only_lures = glmer(response_REC ~ AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM_cont_lures,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-
-
-model_complex_cont_only = glmer(response_REC ~ cosine_metric * AgeGroup +
-                                        AgeGroup:Beck_scale +
-                                        AgeGroup:Vocabulary_scale +
-                                        AgeGroup:Digit_symbol_scale +
-                                        AgeGroup:Non_word_sum_scale +
-                                        AgeGroup:MST_ldi_scale +
-                                        AgeGroup:exercise_regular +
-                                        AgeGroup:sleep_regular +
-                                        cosine_metric*AgeGroup:oa_konk_mean_scale +
-                                        cosine_metric*AgeGroup:ya_konk_mean_scale +  
-                                        cosine_metric*AgeGroup:oa_aro_mean_log_scale +
-                                        cosine_metric*AgeGroup:ya_aro_mean_log_scale +
-                                        cosine_metric:noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='bobyqa', optCtrl=list(maxfun = 20000)), nAGQ=0)
-
-model_simple_cont_all = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_simple_cont_nofoil = glmer(response_REC ~ stimtype_REC * AgeGroup * cosine_metric +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = filter(semmst_data_final_clean_GLMEM, stimtype_REC != "FOIL"),
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-```
-
-```{r}
-
-summary(model_simple_cont_only_lures)
-summary(model_simple_cont_only_close)
-summary(model_simple_cont_only_distant)
-
-# OR
-broom.mixed::tidy(model_simple_cont_only_lures, conf.int = TRUE, exponentiate = TRUE)
-broom.mixed::tidy(model_simple_cont_only_close, conf.int = TRUE, exponentiate = TRUE)
-broom.mixed::tidy(model_simple_cont_only_distant, conf.int = TRUE, exponentiate = TRUE)
-
-r2(model_simple_cont_only_lures)
-r2(model_simple_cont_only_close)
-r2(model_simple_cont_only_distant)
-
-
-# In this plot, we will only include sex and ticket price as predictors.
-semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "old", 1, 0)) %>%
-  filter(stimtype_REC != "FOIL") %>% 
-  ggplot() +
-    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
-    #geom_point() +
-    geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1), xlim = c(0.4,1)) +
-    scale_y_continuous(labels = scales::percent_format()) +
-    custom_theme +
-    labs(title = "Continous GLMEM model plotted", y = "Percentage of 'old' responses", x = "Cosine Similarity")
-
-# Evaluating model
-r2(model_complex_participants_cognitive_optimal)
-
-```
-
-```{r}
-
-summary(model_complex_cont_only)
-
-# OR
-broom.mixed::tidy(model_complex_cont_only, conf.int = TRUE, exponentiate = TRUE)
-
-# In this plot, we will only include sex and ticket price as predictors.
-semmst_data_final_clean_GLMEM %>% 
-  mutate(response_REC = ifelse(response_REC == "new", 1, 0)) %>%
-  filter(stimtype_REC != "FOIL") %>% 
-  ggplot() +
-    aes(y = response_REC, x = cosine_metric, group = AgeGroup, color = AgeGroup) +
-    #geom_point() +
-    geom_smooth(method = "glm", 
-                method.args = list(family = "binomial")) +
-    coord_cartesian(ylim = c(0, 1), xlim = c(1,0.4)) +
-    scale_y_continuous(labels = scales::percent_format()) +
-    custom_theme +
-    labs(title = "Simple GLMEM model plotted", y = "Percentage of 'new' responses", x = "Cosine Similarity")
-
-# Evaluating model
-r2(model_complex_cont_only)
 
 ```
 
@@ -2646,12 +2653,6 @@ semmst_rec_merge_cosine %>%
 
 ```
 
-### Confidence response rates - per item
-
-```{r}
-
-
-```
 
 ## PLOTS FOR ESCOP
 
