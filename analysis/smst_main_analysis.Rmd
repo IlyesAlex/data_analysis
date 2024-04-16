@@ -3568,8 +3568,12 @@ panel.background = element_blank(), legend.text.align = 0)
 Correlation FINAL
 
 ```{r}
+library(cocor)
 
+# Separated by AgeGroup - OA n.s., YA sig.
 semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
   ggplot(mapping = aes(x = MST_ldi, y = lure_dprime, fill = AgeGroup, colour = AgeGroup)) +
     geom_point(shape = 21, color = 'white', size = 6) +
     scale_fill_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
@@ -3579,6 +3583,37 @@ semmst_data_final %>%
     theme(legend.position = "none") +
     labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of d' in the sMST\nand the LDI scores in the MST") +
     guides(colour = FALSE)
+
+# Compare correlations
+smst_ldi_corr_YA = semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
+  filter(AgeGroup=="YA")
+
+smst_ldi_corr_OA = semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
+  filter(AgeGroup=="OA")
+
+
+cocor(~ MST_ldi + lure_dprime | MST_ldi + lure_dprime,
+      data = list(smst_ldi_corr_YA, smst_ldi_corr_OA))
+## No sig. difference in correlations: z = 1.28, p = 0.2
+
+# Going ahead with whole sample correlation:
+semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
+  ggplot(mapping = aes(x = MST_ldi, y = lure_dprime)) +
+    geom_point(aes(colour=AgeGroup), size = 6) +
+    scale_colour_discrete(name = "Age Groups", labels = c("Old Adults", "Young Adults")) +
+    sm_statCorr(fit.params = list(color = 'black',
+                                   linetype = 'dashed'), text_size = 10) +
+    custom_theme +
+    theme(legend.position = "none") +
+    labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of d' in the sMST\nand the LDI scores in the MST") +
+    guides(colour = FALSE)
+
 
 ```
 
