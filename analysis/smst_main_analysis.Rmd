@@ -38,7 +38,7 @@ custom_theme = theme(
       plot.title = element_text(color="black", size=30, face="bold",  hjust = 0.5, vjust = 3), #30 for covariate plots
       axis.text.x = element_text(vjust = 0.5, hjust=0.5, size = 20, face="bold"), #was 16 for other plots besides rec resp rate
       axis.text.y = element_text(vjust = 0.5, hjust=0.5, size = 20, face="bold"),
-      axis.title.x = element_text(vjust = -2, hjust=0.5, size = 26, face="bold"),
+      axis.title.x = element_text(vjust = -2, hjust=0.5, size = 26, face="bold", margin = margin(b = 30)),
       axis.title.y = element_text(vjust = 3, hjust=0.5, size = 26, face="bold"),
       legend.text = element_text(vjust = 0.5, hjust=0.5, size = 25, face="bold"),
       legend.title = element_text(vjust = 0.5, hjust=0.5, size = 26, face="bold"),
@@ -382,7 +382,11 @@ semmst_data_final_clean = semmst_data_final %>%
 ```{r}
 
 semmst_data_final_clean = semmst_data_final_clean%>% 
-  mutate(across(c(ID, itemno, Experimenter, confidence, stimtype_ENC, response_ENC, response_REC, correctness, alcohol_24h, alcohol_regular, caffeine_24h, caffeine_regular, sleep_regular, sleep_24h, exercise_regular), as.factor)) %>% 
+  mutate(across(c(ID, itemno, Experimenter, confidence, stimtype_ENC, response_ENC, response_REC, correctness, alcohol_24h, caffeine_24h, sleep_24h), as.factor)) %>% 
+  mutate(alcohol_regular = factor(alcohol_regular, ordered=TRUE)) %>%
+  mutate(caffeine_regular = factor(caffeine_regular, ordered=TRUE)) %>%  
+  mutate(sleep_regular = factor(sleep_regular, ordered=TRUE)) %>%  
+  mutate(exercise_regular = factor(exercise_regular, ordered=TRUE)) %>%  
   mutate(Moca = as.numeric(Moca))
 
 ```
@@ -769,6 +773,46 @@ sjstats::anova_stats(model_anova) # Full summary
 
 ```
 
+### Further analyses - SciRep review (2024 june)
+
+ANOVA of LDI - d'
+
+```{r}
+library(BBmisc)
+
+semmst_data_final_clean_ANOVA_MST = semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
+  gather("modality", "discriminability", c("MST_ldi", "lure_dprime")) %>% 
+  mutate(modality = ifelse(modality == "MST_ldi", "MST", "sMST")) %>% 
+  mutate(modality = as.factor(modality)) %>% 
+  mutate(AgeGroup = as.factor(AgeGroup)) %>% 
+  filter(modality == "MST")
+
+semmst_data_final_clean_ANOVA_sMST = semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
+  gather("modality", "discriminability", c("MST_ldi", "lure_dprime")) %>% 
+  mutate(modality = ifelse(modality == "MST_ldi", "MST", "sMST")) %>% 
+  mutate(modality = as.factor(modality)) %>% 
+  mutate(AgeGroup = as.factor(AgeGroup)) %>% 
+  filter(modality == "sMST") %>% 
+  mutate(discriminability = normalize(discriminability, method="range"))
+
+semmst_data_final_clean_ANOVA_merge = semmst_data_final %>% 
+  select(ID, AgeGroup, MST_ldi, lure_dprime) %>% 
+  distinct() %>% 
+  gather("modality", "discriminability", c("MST_ldi", "lure_dprime")) %>% 
+  mutate(modality = ifelse(modality == "MST_ldi", "MST", "sMST")) %>% 
+  mutate(modality = as.factor(modality)) %>% 
+  mutate(AgeGroup = as.factor(AgeGroup))
+
+modality_anova <- aov(discriminability ~ AgeGroup * modality, data = semmst_data_final_clean_ANOVA_MST)
+summary(modality_anova)
+
+```
+
+
 
 ## Analyses - GLMEM
 
@@ -963,112 +1007,11 @@ summary(model_simple)
 
 ```
 
-
-#### Complex models
-
-```{r}
-
-
-## Simple models no interaction - to check collinearity
-model_simple_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        Beck_scale +
-                                        Vocabulary_scale +
-                                        Digit_symbol_scale +
-                                        Non_word_sum_scale +
-                                        MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-model_simple_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        alcohol_regular +
-                                        sleep_regular +
-                                        exercise_regular +
-                                        sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-
-model_simple_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        oa_konk_mean_scale +
-                                        ya_konk_mean_scale +
-                                        ya_aro_mean_log_scale +
-                                        oa_aro_mean_log_scale +
-                                        noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-
-check_collinearity(model_simple_participants_cognitive)
-check_collinearity(model_simple_participants_health) # High correlation: sedentary
-check_collinearity(model_simple_items)
-
-## Most complex models with all predictors
-model_complex_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * Beck_scale +
-                                        stimtype_REC * AgeGroup * Vocabulary_scale +
-                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
-                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
-                                        stimtype_REC * AgeGroup * MST_ldi_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-# Model converging
-
-model_complex_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * alcohol_regular +
-                                        stimtype_REC * AgeGroup * sleep_regular +
-                                        stimtype_REC * AgeGroup * exercise_regular +
-                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-# Model not converging - ordinal values
-## Data should be used as random effects
-
-model_complex_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
-                                        stimtype_REC * AgeGroup * oa_konk_mean_scale +
-                                        stimtype_REC * AgeGroup * ya_konk_mean_scale +
-                                        stimtype_REC * AgeGroup * ya_aro_mean_log_scale +
-                                        stimtype_REC * AgeGroup * oa_aro_mean_log_scale +
-                                        stimtype_REC * AgeGroup * noun_freq_log_scale +
-                                        (1|trialnum_REC) + 
-                                        (1|ID) + 
-                                        (1|itemno),
-                                        family = binomial("probit"), 
-                                        data = semmst_data_final_clean_GLMEM,
-                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
-# Model converging
-
-
-
-```
-
 Model evaluations
 
 ```{r}
 # Basic summary
 summary(model_simple)
-
-summary(model_complex_participants_cognitive)
-summary(model_complex_participants_health)
-summary(model_complex_items)
 
 # Pseudo-r2
 r2(model_simple)
@@ -1082,7 +1025,7 @@ tab_model(model_simple,
 
 ```
 
-Complex models - random effects
+#### Complex model
 
 ```{r}
 
@@ -1189,6 +1132,9 @@ r2(model_complex_participants_cognitive_health)
 
 ```
 
+
+
+
 #### Continous model
 
 ```{r}
@@ -1205,7 +1151,6 @@ semmst_data_final_clean_GLMEM_cont_close = semmst_data_final_clean_GLMEM %>%
   filter(cosine_metric < .89)
 
 semmst_data_final_clean_GLMEM_cont_lures = semmst_data_final_clean_GLMEM %>% 
-  #filter(stimtype_REC != "TARG") %>% 
   filter(stimtype_REC != "FOIL") 
 
   
@@ -1338,6 +1283,104 @@ r2(model_complex_cont_only)
 
 
 #### Model variations
+
+##### Complex
+
+
+```{r}
+
+
+## Simple models no interaction - to check collinearity
+model_simple_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        Beck_scale +
+                                        Vocabulary_scale +
+                                        Digit_symbol_scale +
+                                        Non_word_sum_scale +
+                                        MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+model_simple_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        alcohol_regular +
+                                        sleep_regular +
+                                        exercise_regular +
+                                        sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+
+model_simple_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        oa_konk_mean_scale +
+                                        ya_konk_mean_scale +
+                                        ya_aro_mean_log_scale +
+                                        oa_aro_mean_log_scale +
+                                        noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+
+check_collinearity(model_simple_participants_cognitive)
+check_collinearity(model_simple_participants_health) # High correlation: sedentary
+check_collinearity(model_simple_items)
+
+## Most complex models with all predictors
+model_complex_participants_cognitive = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * Beck_scale +
+                                        stimtype_REC * AgeGroup * Vocabulary_scale +
+                                        stimtype_REC * AgeGroup * Digit_symbol_scale +
+                                        stimtype_REC * AgeGroup * Non_word_sum_scale +
+                                        stimtype_REC * AgeGroup * MST_ldi_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+# Model converging
+
+model_complex_participants_health = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * alcohol_regular +
+                                        stimtype_REC * AgeGroup * sleep_regular +
+                                        stimtype_REC * AgeGroup * exercise_regular +
+                                        #stimtype_REC * AgeGroup * sedentary_regular_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+# Model not converging - ordinal values
+## Data should be used as random effects
+
+model_complex_items = glmer(response_REC ~ stimtype_REC * AgeGroup +
+                                        stimtype_REC * AgeGroup * oa_konk_mean_scale +
+                                        stimtype_REC * AgeGroup * ya_konk_mean_scale +
+                                        stimtype_REC * AgeGroup * ya_aro_mean_log_scale +
+                                        stimtype_REC * AgeGroup * oa_aro_mean_log_scale +
+                                        stimtype_REC * AgeGroup * noun_freq_log_scale +
+                                        (1|trialnum_REC) + 
+                                        (1|ID) + 
+                                        (1|itemno),
+                                        family = binomial("probit"), 
+                                        data = semmst_data_final_clean_GLMEM,
+                                        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb', maxfun = 1e6)))
+# Model converging
+
+
+
+```
+
 
 ##### Cognitive
 
@@ -1937,7 +1980,6 @@ model_anova_oa_ert %>%
 ```
 
 
-
 ### Correlations with cognitive controls
 
 MST - sMST correlation
@@ -2039,6 +2081,8 @@ semmst_data_final_clean %>%
   )
 
 ```
+
+#### Supplementary Analysis
 
 ### Encoding data ANOVA
 
@@ -2198,8 +2242,6 @@ health_data_supplement %>%
   group_by(AgeGroup) %>% select(AgeGroup, Sedentary_regular_time) %>% 
   mutate(Sedentary_regular_time = as.numeric(sub(" .*", "", Sedentary_regular_time))) %>%
   summarise(mean = mean(Sedentary_regular_time, na.rm = TRUE), sd = sd(Sedentary_regular_time, na.rm = TRUE))
-
-  
 
 
 ```
@@ -3413,8 +3455,6 @@ semmst_data_rec %>%
 
 ```
 
-
-
 D-prime
 
 ```{r}
@@ -3459,7 +3499,7 @@ plot_model(model_simple, type = "est", transform = "exp", terms = c("(Intercept)
            vline.color = "red",
            width = 0.5,
            wrap.labels = 70,
-           axis.labels = c("Age Group * Distant Lure", "Age Group * Close Lure", "Age Group * Target", "Old Adults", "Distant Lure", "Close Lure", "Target", "Intercept (Foil)"),
+           axis.labels = c("Old Adults * Distant Lure", "Old Adults * Close Lure", "Old Adults * Target", "Old Adults", "Distant Lure", "Close Lure", "Target", "Intercept (Foil, Young Adults)"),
            axis.title = c("", "x"),
            title = "Exponentiated estimates from simple GLMEM",
            order.terms = c(4,6,3,5,1,2),
@@ -3480,13 +3520,13 @@ plot_model(model_complex_participants_cognitive_health, type = "est", transform 
                                                                                 "stimtype_RECTARG:AgeGroupOA",
                                                                                 "stimtype_RECCLOSE:AgeGroupOA",
                                                                                 "stimtype_RECDISTANT:AgeGroupOA",
-                                                                                "AgeGroupYA:MST_ldi_scale",
                                                                                 "AgeGroupYA:Digit_symbol_scale",
                                                                                 "AgeGroupOA:Non_word_sum_scale",
                                                                                 "stimtype_RECFOIL:noun_freq_log_scale",
                                                                                 "stimtype_RECTARG:noun_freq_log_scale",
                                                                                 "stimtype_RECCLOSE:AgeGroupOA:ya_konk_mean_scale",
                                                                                 "stimtype_RECCLOSE:AgeGroupYA:ya_konk_mean_scale",
+                                                                                "stimtype_RECCLOSE:AgeGroupYA:oa_konk_mean_scale",
                                                                                 "stimtype_RECDISTANT:AgeGroupYA:ya_konk_mean_scale"), 
            colors = c("seagreen3", "deepskyblue2", "orchid"), 
            show.values = TRUE,
@@ -3499,21 +3539,21 @@ plot_model(model_complex_participants_cognitive_health, type = "est", transform 
            width = 0.5,
            axis.title = c("", "x"),
            axis.labels = c("Close Lure * Old Adults * YA concreteness score",
-                           "Distant Lure * Young Adults * YA concreteness score", 
+                           "Distant Lure * Young Adults * YA concreteness score",
                            "Close Lure * Young Adults * YA concreteness score",
+                           "Close Lure * Young Adults * OA concreteness score",
                            "Target * Noun frequency", 
                            "Foil * Noun frequency", 
-                           "Young adults * LDI in MST",
                            "Old adults * Non-word repetition", 
                            "Young adults * Processing speed", 
-                           "Age Group * Distant Lure", 
-                           "Age Group * Close Lure", 
-                           "Age Group * Target", 
-                           "Old adult", 
+                           "Old adults * Distant Lure", 
+                           "Old adults * Close Lure", 
+                           "Old adults * Target", 
+                           "Old adults", 
                            "Distant Lure", 
                            "Close Lure", 
                            "Target", 
-                           "Intercept (Foil)"),
+                           "Intercept (Foil, Young Adults)"),
            title = "Exponentiated estimates from complex GLMEM",
            order.terms = c(4,6,3,5,1,2),
            group.terms = c(1,1,2,3,2,3),
@@ -3581,7 +3621,7 @@ semmst_data_final %>%
                                    linetype = 'dashed'), text_size = 10) +
     custom_theme +
     theme(legend.position = "none") +
-    labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of d' in the sMST\nand the LDI scores in the MST") +
+    labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of lure discrimination performance in the MST and sMST") +
     guides(colour = FALSE)
 
 # Compare correlations
@@ -3610,9 +3650,11 @@ semmst_data_final %>%
     sm_statCorr(fit.params = list(color = 'black',
                                    linetype = 'dashed'), text_size = 10) +
     custom_theme +
-    theme(legend.position = "none") +
-    labs(x = "MST LDI", y = "sMST - Lure d'", title = "Correlation of d' in the sMST\nand the LDI scores in the MST") +
-    guides(colour = FALSE)
+    theme(legend.position = "bottom") +
+    labs(x = "Discrimination index (LDI) in the perceptual MST", y = "Discrimination index (lure d') in the semantic MST", title = "Correlation of lure discrimination performance\nin the MST and sMST") 
+    #guides(colour=guide_legend(theme=theme(
+    #  legend.position = "bottom",
+    #  legend.text = element_text(vjust = -3))))
 
 
 ```
